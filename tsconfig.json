@@ -16,5 +16,6 @@
     "baseUrl": ".",
     "paths": { "@/*": ["src/*"] }
   },
-  "include": ["src", "tests", "manifest.config.ts", "vite.config.ts", "vitest.config.ts"]
+  "include": ["src", "tests"],
+  "exclude": ["manifest.config.ts", "vite.config.ts", "vitest.config.ts"]
 }
