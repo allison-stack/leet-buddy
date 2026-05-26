@@ -27,6 +27,7 @@ export function Popup() {
       </div>
       <div style={{ marginTop: 8 }}>Reviews due: <strong>{state.reviewsDue}</strong></div>
       <div style={{ marginTop: 4 }}>Streak: <strong>{state.streakDays}</strong> day(s)</div>
+      <div style={{ marginTop: 4, opacity: 0.7 }}>Tokens used today: {state.tokensUsedToday}</div>
       <div style={{ marginTop: 12 }}>
         <button onClick={() => chrome.runtime.openOptionsPage()}>Settings</button>
       </div>

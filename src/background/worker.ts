@@ -1,4 +1,4 @@
-import { getState, persistTimers, buildProviderConfigs, chat } from './state';
+import { getState, persistTimers, buildProviderConfigs, chat, recordTokens, tokensToday } from './state';
 import type { ContentToWorker, WorkerToContent } from '@/shared/messages';
 import type { ProblemRecord } from '@/shared/types';
 import { TIMER_TICK_MS } from '@/shared/constants';
@@ -35,7 +35,7 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
             todaysProblemCompleted: !!entry?.completed,
             reviewsDue: due.length,
             streakDays: streak,
-            tokensUsedToday: 0, // wired in Task 33
+            tokensUsedToday: await tokensToday(now),
           },
         });
         return;
@@ -105,6 +105,7 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
           const { primary, fallback } = await buildProviderConfigs();
           const { system, user } = approachEvalPrompt(msg.payload);
           const res = await chat({ systemPrompt: system, userPrompt: user, primary, fallback, maxTokens: 250 });
+          await recordTokens((res.tokensIn ?? 0) + (res.tokensOut ?? 0), now);
           const cleaned = stripCodeBlocks(res.text);
           sendResponse({ ok: true, payload: parseApproachReply(cleaned) });
         } catch (e) {
@@ -134,6 +135,7 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
           const { system, user } = hintPrompt(msg.payload);
           const res = await chat({ systemPrompt: system, userPrompt: user, primary, fallback,
             maxTokens: msg.payload.tier === 4 ? 600 : 250 });
+          await recordTokens((res.tokensIn ?? 0) + (res.tokensOut ?? 0), now);
           const cleaned = stripCodeBlocks(res.text);
           state.cache.set(msg.payload.slug, msg.payload.tier, ch, cleaned);
           await persistCache(state);

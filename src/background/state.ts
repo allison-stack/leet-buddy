@@ -61,3 +61,15 @@ export async function buildProviderConfigs(): Promise<{ primary: ProviderConfig;
 }
 
 export { chat };
+
+export async function recordTokens(tokens: number, now: number): Promise<void> {
+  const today = new Date(now).toISOString().slice(0, 10);
+  const key = `tokens_${today}`;
+  const cur = (await getLocal<number>(key)) ?? 0;
+  await setLocal(key, cur + tokens);
+}
+
+export async function tokensToday(now: number): Promise<number> {
+  const today = new Date(now).toISOString().slice(0, 10);
+  return (await getLocal<number>(`tokens_${today}`)) ?? 0;
+}
