@@ -1,8 +1,14 @@
-import { getState, persistTimers, buildProviderConfigs, chat, recordTokens, tokensToday } from './state';
+import { getState, persistTimers, persistCache, buildProviderConfigs, chat, recordTokens, tokensToday } from './state';
 import type { ContentToWorker, WorkerToContent } from '@/shared/messages';
 import type { ProblemRecord } from '@/shared/types';
 import { TIMER_TICK_MS } from '@/shared/constants';
 import { scheduleDailyAlarm, fireDailyReminder } from './alarms';
+import { getProblems, getDailyLog, upsertProblem } from '@/shared/storage';
+import { dueReviews, isoToday } from './scheduler';
+import { initialSm2State, updateSm2 } from '@/shared/sm2';
+import { approachEvalPrompt, hintPrompt } from '@/llm/prompts';
+import { stripCodeBlocks } from '@/llm/output-filter';
+import { codeHash } from './hint-cache';
 
 console.log('[leet-buddy] worker boot');
 
@@ -19,8 +25,6 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
 
     switch (msg.type) {
       case 'GET_POPUP_STATE': {
-        const { getProblems, getDailyLog } = await import('@/shared/storage');
-        const { dueReviews, isoToday } = await import('./scheduler');
         const problems = await getProblems();
         const log = await getDailyLog();
         const due = dueReviews(problems, now);
@@ -58,8 +62,6 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
         break;
       case 'MARK_SOLVED': {
         if (tabId === undefined) { sendResponse({ ok: false, error: 'no tabId' }); return; }
-        const { getProblems, upsertProblem } = await import('@/shared/storage');
-        const { initialSm2State } = await import('@/shared/sm2');
         const all = await getProblems();
         const existing = all[msg.slug];
         const rec = existing ?? {
@@ -77,8 +79,6 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
         return;
       }
       case 'RATE_SOLVE': {
-        const { getProblems, upsertProblem } = await import('@/shared/storage');
-        const { updateSm2 } = await import('@/shared/sm2');
         const all = await getProblems();
         const rec = all[msg.slug];
         if (!rec) { sendResponse({ ok: false, error: 'unknown problem' }); return; }
@@ -100,8 +100,6 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
           return;
         }
         try {
-          const { approachEvalPrompt } = await import('@/llm/prompts');
-          const { stripCodeBlocks } = await import('@/llm/output-filter');
           const { primary, fallback } = await buildProviderConfigs();
           const { system, user } = approachEvalPrompt(msg.payload);
           const res = await chat({ systemPrompt: system, userPrompt: user, primary, fallback, maxTokens: 250 });
@@ -119,11 +117,6 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
           return;
         }
         try {
-          const { hintPrompt } = await import('@/llm/prompts');
-          const { stripCodeBlocks } = await import('@/llm/output-filter');
-          const { codeHash } = await import('./hint-cache');
-          const { persistCache } = await import('./state');
-
           const ch = codeHash(msg.payload.userCode);
           const cached = state.cache.get(msg.payload.slug, msg.payload.tier, ch);
           if (cached) {
