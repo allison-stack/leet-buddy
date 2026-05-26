@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
-import { slugFromUrl, readTitle, readDifficulty } from '../leetcode-dom';
+import { slugFromUrl, readTitle, readDifficulty, readProblemStatement } from '../leetcode-dom';
+import { readMonacoContents, isSubstantive } from '../editor';
 import { sendToWorker } from '@/shared/messages';
 import type { TimerStatus } from '@/shared/messages';
-import type { Difficulty } from '@/shared/types';
+import type { Difficulty, ApproachEvalResponse } from '@/shared/types';
 import { Timer } from './Timer';
+import { ApproachPrompt } from './ApproachPrompt';
+
+type Phase = 'timing' | 'approach' | 'hint' | 'solved';
 
 export function Panel() {
   const [slug, setSlug] = useState<string | null>(null);
@@ -11,26 +15,51 @@ export function Panel() {
   const [difficulty, setDifficulty] = useState<Difficulty>('easy');
   const [remaining, setRemaining] = useState(0);
   const [status, setStatus] = useState<TimerStatus>('idle');
+  const [phase, setPhase] = useState<Phase>('timing');
+  const [approachResult, setApproachResult] = useState<ApproachEvalResponse | null>(null);
+  const [starter, setStarter] = useState<string>('');
 
   useEffect(() => {
     const s = slugFromUrl();
     if (!s) return;
     setSlug(s);
     setTitle(readTitle());
-    setDifficulty(readDifficulty());
-    void sendToWorker({ type: 'TIMER_START', tabId: -1, slug: s, difficulty: readDifficulty() });
+    const d = readDifficulty();
+    setDifficulty(d);
+    void sendToWorker({ type: 'TIMER_START', tabId: -1, slug: s, difficulty: d });
   }, []);
 
+  // Capture the editor's starter template at mount (before user edits).
   useEffect(() => {
-    const handler = (msg: { type: string; remainingSeconds?: number; status?: TimerStatus }) => {
+    if (!slug) return;
+    let attempts = 0;
+    const id = setInterval(() => {
+      const code = readMonacoContents();
+      attempts++;
+      if (code.trim().length > 0) {
+        setStarter(code);
+        clearInterval(id);
+      } else if (attempts > 20) {
+        clearInterval(id);
+      }
+    }, 500);
+    return () => clearInterval(id);
+  }, [slug]);
+
+  useEffect(() => {
+    const handler = (msg: { type: string; remainingSeconds?: number; status?: TimerStatus; askForApproach?: boolean }) => {
       if (msg.type === 'TIMER_TICK') {
         if (typeof msg.remainingSeconds === 'number') setRemaining(msg.remainingSeconds);
         if (msg.status) setStatus(msg.status);
       }
+      if (msg.type === 'TIMER_FIRED') {
+        const code = readMonacoContents();
+        setPhase(isSubstantive(code, starter, 30) ? 'hint' : 'approach');
+      }
     };
     chrome.runtime.onMessage.addListener(handler);
     return () => chrome.runtime.onMessage.removeListener(handler);
-  }, []);
+  }, [starter]);
 
   if (!slug) return null;
 
@@ -47,6 +76,22 @@ export function Panel() {
         <button className="lb-btn" onClick={() => sendToWorker({ type: 'TIMER_RESET', tabId: -1 })}>Reset</button>
       </div>
       <div style={{ marginTop: 8, fontSize: 11, opacity: 0.7 }}>status: {status}</div>
+
+      {phase === 'approach' && (
+        <ApproachPrompt
+          slug={slug}
+          problemStatement={readProblemStatement()}
+          difficulty={difficulty}
+          onResult={r => { setApproachResult(r); setPhase('hint'); }}
+          onSkip={() => setPhase('hint')}
+        />
+      )}
+
+      {approachResult && (
+        <div className="lb-hint">
+          <strong>{approachResult.verdict.toUpperCase()}:</strong> {approachResult.message}
+        </div>
+      )}
     </div>
   );
 }
