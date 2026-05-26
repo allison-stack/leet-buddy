@@ -47,14 +47,6 @@ function defaultState(): DragResizeState {
 export function useDragResize(slug: string | null) {
   const [state, setState] = useState<DragResizeState>(defaultState);
 
-  useEffect(() => {
-    setState(defaultState());
-  }, [slug]);
-
-  useEffect(() => {
-    return () => { cleanupRef.current?.(); };
-  }, []);
-
   const dragRef = useRef<{
     startPos: { x: number; y: number };
     startMouse: { x: number; y: number };
@@ -67,12 +59,21 @@ export function useDragResize(slug: string | null) {
 
   const cleanupRef = useRef<(() => void) | null>(null);
 
+  useEffect(() => {
+    setState(defaultState());
+  }, [slug]);
+
+  useEffect(() => {
+    return () => { cleanupRef.current?.(); };
+  }, []);
+
   const onDragMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     const root = (e.currentTarget as HTMLElement).closest('.lb-root') as HTMLElement | null;
     const rect = root?.getBoundingClientRect();
     const startPos = rect ? { x: rect.left, y: rect.top } : { x: 0, y: 0 };
     dragRef.current = { startPos, startMouse: { x: e.clientX, y: e.clientY } };
+    document.body.style.userSelect = 'none';
 
     const onMove = (ev: MouseEvent) => {
       if (!dragRef.current) return;
@@ -85,6 +86,7 @@ export function useDragResize(slug: string | null) {
     const onUp = () => {
       dragRef.current = null;
       cleanupRef.current = null;
+      document.body.style.userSelect = '';
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
     };
@@ -103,6 +105,7 @@ export function useDragResize(slug: string | null) {
       height: rect?.height ?? 200,
     };
     resizeRef.current = { startSize, startMouse: { x: e.clientX, y: e.clientY } };
+    document.body.style.userSelect = 'none';
 
     const onMove = (ev: MouseEvent) => {
       if (!resizeRef.current) return;
@@ -116,6 +119,7 @@ export function useDragResize(slug: string | null) {
     const onUp = () => {
       resizeRef.current = null;
       cleanupRef.current = null;
+      document.body.style.userSelect = '';
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
     };

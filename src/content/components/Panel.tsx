@@ -100,47 +100,49 @@ export function Panel() {
         </span>
         <Timer remainingFromWorker={remaining} status={status} />
       </div>
-      <div style={{ opacity: 0.7, fontSize: 11 }}>{title} · {difficulty}</div>
-      <div className="lb-row">
-        <button className="lb-btn" onClick={() => void sendTimerControl({ type: 'TIMER_PAUSE', tabId: -1 })}>Pause</button>
-        <button className="lb-btn" onClick={() => void sendTimerControl({ type: 'TIMER_RESUME', tabId: -1 })}>Resume</button>
-        <button className="lb-btn" onClick={() => void sendTimerControl({ type: 'TIMER_RESET', tabId: -1 })}>Reset</button>
-        <button className="lb-btn" onClick={() => {
-          if (!slug) return;
-          setPhase('solved');
-          void sendToWorker({ type: 'MARK_SOLVED', slug, title, difficulty, hintTierUsed });
-        }}>Mark solved</button>
-      </div>
-      <div style={{ marginTop: 8, fontSize: 11, opacity: 0.7 }}>status: {status}</div>
-
-      {phase === 'approach' && (
-        <ApproachPrompt
-          slug={slug}
-          problemStatement={readProblemStatement()}
-          difficulty={difficulty}
-          onResult={r => { setApproachResult(r); setPhase('hint'); }}
-          onSkip={() => setPhase('hint')}
-        />
-      )}
-
-      {approachResult && (
-        <div className="lb-hint">
-          <strong>{approachResult.verdict.toUpperCase()}:</strong> {approachResult.message}
+      <div className="lb-body">
+        <div style={{ opacity: 0.7, fontSize: 11 }}>{title} · {difficulty}</div>
+        <div className="lb-row">
+          <button className="lb-btn" onClick={() => void sendTimerControl({ type: 'TIMER_PAUSE', tabId: -1 })}>Pause</button>
+          <button className="lb-btn" onClick={() => void sendTimerControl({ type: 'TIMER_RESUME', tabId: -1 })}>Resume</button>
+          <button className="lb-btn" onClick={() => void sendTimerControl({ type: 'TIMER_RESET', tabId: -1 })}>Reset</button>
+          <button className="lb-btn" onClick={() => {
+            if (!slug) return;
+            setPhase('solved');
+            void sendToWorker({ type: 'MARK_SOLVED', slug, title, difficulty, hintTierUsed });
+          }}>Mark solved</button>
         </div>
-      )}
+        <div style={{ marginTop: 8, fontSize: 11, opacity: 0.7 }}>status: {status}</div>
 
-      {phase === 'hint' && (
-        <HintLadder
-          slug={slug}
-          problemStatement={readProblemStatement()}
-          difficulty={difficulty}
-          userCode={readMonacoContents()}
-        />
-      )}
+        {phase === 'approach' && (
+          <ApproachPrompt
+            slug={slug}
+            problemStatement={readProblemStatement()}
+            difficulty={difficulty}
+            onResult={r => { setApproachResult(r); setPhase('hint'); }}
+            onSkip={() => setPhase('hint')}
+          />
+        )}
 
-      {phase === 'solved' && (
-        <SolveRating slug={slug} title={title} difficulty={difficulty} hintTierUsed={hintTierUsed} onRated={() => { /* keep panel as-is */ }} />
-      )}
+        {approachResult && (
+          <div className="lb-hint">
+            <strong>{approachResult.verdict.toUpperCase()}:</strong> {approachResult.message}
+          </div>
+        )}
+
+        {phase === 'hint' && (
+          <HintLadder
+            slug={slug}
+            problemStatement={readProblemStatement()}
+            difficulty={difficulty}
+            userCode={readMonacoContents()}
+          />
+        )}
+
+        {phase === 'solved' && (
+          <SolveRating slug={slug} title={title} difficulty={difficulty} hintTierUsed={hintTierUsed} onRated={() => { /* keep panel as-is */ }} />
+        )}
+      </div>
       <div className="lb-resize-grip" {...resizeGripProps}>
         <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
           <line x1="2" y1="10" x2="10" y2="2" stroke="#555" strokeWidth="1.5" strokeLinecap="round"/>
