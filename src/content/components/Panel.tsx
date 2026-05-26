@@ -3,6 +3,7 @@ import { slugFromUrl, readTitle, readDifficulty } from '../leetcode-dom';
 import { sendToWorker } from '@/shared/messages';
 import type { TimerStatus } from '@/shared/messages';
 import type { Difficulty } from '@/shared/types';
+import { Timer } from './Timer';
 
 export function Panel() {
   const [slug, setSlug] = useState<string | null>(null);
@@ -33,14 +34,11 @@ export function Panel() {
 
   if (!slug) return null;
 
-  const mm = String(Math.floor(remaining / 60)).padStart(2, '0');
-  const ss = String(remaining % 60).padStart(2, '0');
-
   return (
     <div className="lb-root">
       <div className="lb-header">
         <span>Leet Buddy</span>
-        <span className="lb-timer">{mm}:{ss}</span>
+        <Timer remainingFromWorker={remaining} status={status} />
       </div>
       <div style={{ opacity: 0.7, fontSize: 11 }}>{title} · {difficulty}</div>
       <div className="lb-row">
