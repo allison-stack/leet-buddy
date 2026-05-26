@@ -95,7 +95,7 @@ export function Panel() {
     <div className="lb-root" style={rootStyle}>
       <div className="lb-header" {...dragHandleProps}>
         <span>
-          <span style={{ opacity: 0.3, marginRight: 6, fontSize: 12 }}>⠿</span>
+          <span style={{ opacity: 0.3, marginRight: 6, fontSize: 12 }} aria-hidden="true">⠿</span>
           Leet Buddy
         </span>
         <Timer remainingFromWorker={remaining} status={status} />

@@ -50,6 +50,8 @@ export function useDragResize(slug: string | null) {
   const dragRef = useRef<{
     startPos: { x: number; y: number };
     startMouse: { x: number; y: number };
+    panelWidth: number;
+    panelHeight: number;
   } | null>(null);
 
   const resizeRef = useRef<{
@@ -57,14 +59,20 @@ export function useDragResize(slug: string | null) {
     startMouse: { x: number; y: number };
   } | null>(null);
 
-  const cleanupRef = useRef<(() => void) | null>(null);
+  const dragCleanupRef = useRef<(() => void) | null>(null);
+  const resizeCleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
+    dragCleanupRef.current?.();
+    resizeCleanupRef.current?.();
     setState(defaultState());
   }, [slug]);
 
   useEffect(() => {
-    return () => { cleanupRef.current?.(); };
+    return () => {
+      dragCleanupRef.current?.();
+      resizeCleanupRef.current?.();
+    };
   }, []);
 
   const onDragMouseDown = useCallback((e: React.MouseEvent) => {
@@ -72,25 +80,32 @@ export function useDragResize(slug: string | null) {
     const root = (e.currentTarget as HTMLElement).closest('.lb-root') as HTMLElement | null;
     const rect = root?.getBoundingClientRect();
     const startPos = rect ? { x: rect.left, y: rect.top } : { x: 0, y: 0 };
-    dragRef.current = { startPos, startMouse: { x: e.clientX, y: e.clientY } };
+    dragRef.current = {
+      startPos,
+      startMouse: { x: e.clientX, y: e.clientY },
+      panelWidth: rect?.width ?? 320,
+      panelHeight: rect?.height ?? 200,
+    };
     document.body.style.userSelect = 'none';
 
     const onMove = (ev: MouseEvent) => {
       if (!dragRef.current) return;
-      const { startPos, startMouse } = dragRef.current;
-      setState(s => ({
-        ...s,
-        pos: computeDragPos(startPos, startMouse, { x: ev.clientX, y: ev.clientY }),
-      }));
+      const { startPos, startMouse, panelWidth, panelHeight } = dragRef.current;
+      const raw = computeDragPos(startPos, startMouse, { x: ev.clientX, y: ev.clientY });
+      const pos = {
+        x: Math.max(0, Math.min(window.innerWidth - panelWidth, raw.x)),
+        y: Math.max(0, Math.min(window.innerHeight - panelHeight, raw.y)),
+      };
+      setState(s => ({ ...s, pos }));
     };
     const onUp = () => {
       dragRef.current = null;
-      cleanupRef.current = null;
+      dragCleanupRef.current = null;
       document.body.style.userSelect = '';
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
     };
-    cleanupRef.current = onUp;
+    dragCleanupRef.current = onUp;
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
   }, []);
@@ -118,12 +133,12 @@ export function useDragResize(slug: string | null) {
     };
     const onUp = () => {
       resizeRef.current = null;
-      cleanupRef.current = null;
+      resizeCleanupRef.current = null;
       document.body.style.userSelect = '';
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
     };
-    cleanupRef.current = onUp;
+    resizeCleanupRef.current = onUp;
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
   }, []);
