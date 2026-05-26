@@ -40,14 +40,20 @@ interface DragResizeState {
   size: { width: number; height?: number };
 }
 
-const DEFAULT_STATE: DragResizeState = { pos: null, size: { width: 320 } };
+function defaultState(): DragResizeState {
+  return { pos: null, size: { width: 320 } };
+}
 
 export function useDragResize(slug: string | null) {
-  const [state, setState] = useState<DragResizeState>(DEFAULT_STATE);
+  const [state, setState] = useState<DragResizeState>(defaultState);
 
   useEffect(() => {
-    setState(DEFAULT_STATE);
+    setState(defaultState());
   }, [slug]);
+
+  useEffect(() => {
+    return () => { cleanupRef.current?.(); };
+  }, []);
 
   const dragRef = useRef<{
     startPos: { x: number; y: number };
@@ -59,6 +65,8 @@ export function useDragResize(slug: string | null) {
     startMouse: { x: number; y: number };
   } | null>(null);
 
+  const cleanupRef = useRef<(() => void) | null>(null);
+
   const onDragMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     const root = (e.currentTarget as HTMLElement).closest('.lb-root') as HTMLElement | null;
@@ -68,16 +76,19 @@ export function useDragResize(slug: string | null) {
 
     const onMove = (ev: MouseEvent) => {
       if (!dragRef.current) return;
+      const { startPos, startMouse } = dragRef.current;
       setState(s => ({
         ...s,
-        pos: computeDragPos(dragRef.current!.startPos, dragRef.current!.startMouse, { x: ev.clientX, y: ev.clientY }),
+        pos: computeDragPos(startPos, startMouse, { x: ev.clientX, y: ev.clientY }),
       }));
     };
     const onUp = () => {
       dragRef.current = null;
+      cleanupRef.current = null;
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
     };
+    cleanupRef.current = onUp;
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
   }, []);
@@ -95,17 +106,20 @@ export function useDragResize(slug: string | null) {
 
     const onMove = (ev: MouseEvent) => {
       if (!resizeRef.current) return;
+      const { startSize, startMouse } = resizeRef.current;
       const maxH = window.innerHeight * 0.9;
       setState(s => ({
         ...s,
-        size: computeResizeSize(resizeRef.current!.startSize, resizeRef.current!.startMouse, { x: ev.clientX, y: ev.clientY }, maxH),
+        size: computeResizeSize(startSize, startMouse, { x: ev.clientX, y: ev.clientY }, maxH),
       }));
     };
     const onUp = () => {
       resizeRef.current = null;
+      cleanupRef.current = null;
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
     };
+    cleanupRef.current = onUp;
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
   }, []);
