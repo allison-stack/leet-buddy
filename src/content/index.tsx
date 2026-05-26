@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import { Panel } from './components/Panel';
 import css from './panel.css?inline';
+import { loadCachedSelectors } from './selectors';
 
 function mount() {
   const host = document.createElement('div');
@@ -17,5 +18,6 @@ function mount() {
 
 if (location.pathname.startsWith('/problems/')) {
   // wait a tick for LeetCode SPA to settle
+  void loadCachedSelectors();
   setTimeout(mount, 800);
 }
