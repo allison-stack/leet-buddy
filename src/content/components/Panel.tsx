@@ -8,6 +8,7 @@ import { Timer } from './Timer';
 import { ApproachPrompt } from './ApproachPrompt';
 import { HintLadder } from './HintLadder';
 import { SolveRating } from './SolveRating';
+import { useDragResize } from '../hooks/useDragResize';
 
 type Phase = 'timing' | 'approach' | 'hint' | 'solved';
 
@@ -72,6 +73,14 @@ export function Panel() {
     });
   }, [slug, title, difficulty, hintTierUsed]);
 
+  const { pos, size, dragHandleProps, resizeGripProps } = useDragResize(slug);
+
+  const rootStyle: React.CSSProperties = {
+    width: size.width,
+    ...(size.height !== undefined ? { height: size.height, maxHeight: size.height } : {}),
+    ...(pos !== null ? { left: pos.x, top: pos.y, right: 'auto', bottom: 'auto' } : {}),
+  };
+
   if (!slug) return null;
 
   async function sendTimerControl(msg: ContentToWorker) {
@@ -83,9 +92,12 @@ export function Panel() {
   }
 
   return (
-    <div className="lb-root">
-      <div className="lb-header">
-        <span>Leet Buddy</span>
+    <div className="lb-root" style={rootStyle}>
+      <div className="lb-header" {...dragHandleProps}>
+        <span>
+          <span style={{ opacity: 0.3, marginRight: 6, fontSize: 12 }}>⠿</span>
+          Leet Buddy
+        </span>
         <Timer remainingFromWorker={remaining} status={status} />
       </div>
       <div style={{ opacity: 0.7, fontSize: 11 }}>{title} · {difficulty}</div>
@@ -129,6 +141,13 @@ export function Panel() {
       {phase === 'solved' && (
         <SolveRating slug={slug} title={title} difficulty={difficulty} hintTierUsed={hintTierUsed} onRated={() => { /* keep panel as-is */ }} />
       )}
+      <div className="lb-resize-grip" {...resizeGripProps}>
+        <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+          <line x1="2" y1="10" x2="10" y2="2" stroke="#555" strokeWidth="1.5" strokeLinecap="round"/>
+          <line x1="5" y1="10" x2="10" y2="5" stroke="#555" strokeWidth="1.5" strokeLinecap="round"/>
+          <line x1="8" y1="10" x2="10" y2="8" stroke="#555" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+      </div>
     </div>
   );
 }
