@@ -23,7 +23,3 @@ Right-click the extension icon → Options.
 npm test
 npm run typecheck
 ```
-
-## Architecture
-
-See [`docs/superpowers/specs/2026-05-24-leet-buddy-design.md`](docs/superpowers/specs/2026-05-24-leet-buddy-design.md).
