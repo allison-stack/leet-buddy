@@ -12,3 +12,6 @@
 .lb-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid #2d2d2d; }
 .lb-hint { background: #2d2d2d; border-left: 3px solid #ffa116; padding: 10px; border-radius: 6px;
   margin-top: 8px; line-height: 1.5; }
+.lb-header { cursor: grab; }
+.lb-header:active { cursor: grabbing; }
+.lb-resize-grip { position: absolute; bottom: 0; right: 0; width: 18px; height: 18px; cursor: se-resize; display: flex; align-items: flex-end; justify-content: flex-end; padding: 3px; }
