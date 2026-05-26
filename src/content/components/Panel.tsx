@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { slugFromUrl, readTitle, readDifficulty, readProblemStatement } from '../leetcode-dom';
+import { slugFromUrl, readTitle, readDifficulty, readProblemStatement, onAcceptedVerdict } from '../leetcode-dom';
 import { readMonacoContents, isSubstantive } from '../editor';
 import { sendToWorker } from '@/shared/messages';
 import type { TimerStatus } from '@/shared/messages';
@@ -7,6 +7,7 @@ import type { Difficulty, ApproachEvalResponse } from '@/shared/types';
 import { Timer } from './Timer';
 import { ApproachPrompt } from './ApproachPrompt';
 import { HintLadder } from './HintLadder';
+import { SolveRating } from './SolveRating';
 
 type Phase = 'timing' | 'approach' | 'hint' | 'solved';
 
@@ -19,6 +20,7 @@ export function Panel() {
   const [phase, setPhase] = useState<Phase>('timing');
   const [approachResult, setApproachResult] = useState<ApproachEvalResponse | null>(null);
   const [starter, setStarter] = useState<string>('');
+  const [hintTierUsed, setHintTierUsed] = useState<0 | 1 | 2 | 3 | 4>(0);
 
   useEffect(() => {
     const s = slugFromUrl();
@@ -62,6 +64,14 @@ export function Panel() {
     return () => chrome.runtime.onMessage.removeListener(handler);
   }, [starter]);
 
+  useEffect(() => {
+    if (!slug) return;
+    return onAcceptedVerdict(() => {
+      setPhase('solved');
+      void sendToWorker({ type: 'MARK_SOLVED', slug, title, difficulty, hintTierUsed });
+    });
+  }, [slug, title, difficulty, hintTierUsed]);
+
   if (!slug) return null;
 
   return (
@@ -75,6 +85,11 @@ export function Panel() {
         <button className="lb-btn" onClick={() => sendToWorker({ type: 'TIMER_PAUSE', tabId: -1 })}>Pause</button>
         <button className="lb-btn" onClick={() => sendToWorker({ type: 'TIMER_RESUME', tabId: -1 })}>Resume</button>
         <button className="lb-btn" onClick={() => sendToWorker({ type: 'TIMER_RESET', tabId: -1 })}>Reset</button>
+        <button className="lb-btn" onClick={() => {
+          if (!slug) return;
+          setPhase('solved');
+          void sendToWorker({ type: 'MARK_SOLVED', slug, title, difficulty, hintTierUsed });
+        }}>Mark solved</button>
       </div>
       <div style={{ marginTop: 8, fontSize: 11, opacity: 0.7 }}>status: {status}</div>
 
@@ -101,6 +116,10 @@ export function Panel() {
           difficulty={difficulty}
           userCode={readMonacoContents()}
         />
+      )}
+
+      {phase === 'solved' && (
+        <SolveRating slug={slug} title={title} difficulty={difficulty} hintTierUsed={hintTierUsed} onRated={() => { /* keep panel as-is */ }} />
       )}
     </div>
   );

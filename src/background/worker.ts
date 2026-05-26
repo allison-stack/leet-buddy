@@ -1,5 +1,6 @@
 import { getState, persistTimers, buildProviderConfigs, chat } from './state';
 import type { ContentToWorker, WorkerToContent } from '@/shared/messages';
+import type { ProblemRecord } from '@/shared/types';
 import { TIMER_TICK_MS } from '@/shared/constants';
 
 console.log('[leet-buddy] worker boot');
@@ -23,7 +24,42 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
       case 'TIMER_RESUME': state.timers.resume(tabId, now); break;
       case 'TIMER_RESET': state.timers.reset(tabId, now); break;
       case 'GET_TIMER_STATE': break;
-      case 'MARK_SOLVED': state.timers.markSolved(tabId, now); break;
+      case 'MARK_SOLVED': {
+        const { getProblems, upsertProblem } = await import('@/shared/storage');
+        const { initialSm2State } = await import('@/shared/sm2');
+        const all = await getProblems();
+        const existing = all[msg.slug];
+        const rec = existing ?? {
+          slug: msg.slug, title: msg.title, difficulty: msg.difficulty,
+          firstSolvedAt: now, sm2: initialSm2State(now),
+          hintTierUsedMax: 0,
+          attempts: 0,
+        } as ProblemRecord;
+        rec.attempts += 1;
+        rec.hintTierUsedMax = Math.max(rec.hintTierUsedMax, msg.hintTierUsed) as ProblemRecord['hintTierUsedMax'];
+        state.timers.markSolved(tabId, now);
+        await upsertProblem(rec);
+        await persistTimers(state);
+        sendResponse({ ok: true });
+        return;
+      }
+      case 'RATE_SOLVE': {
+        const { getProblems, upsertProblem } = await import('@/shared/storage');
+        const { updateSm2 } = await import('@/shared/sm2');
+        const all = await getProblems();
+        const rec = all[msg.slug];
+        if (!rec) { sendResponse({ ok: false, error: 'unknown problem' }); return; }
+        rec.sm2 = updateSm2(rec.sm2, msg.quality, now);
+        await upsertProblem(rec);
+        sendResponse({ ok: true });
+        return;
+      }
+      case 'SKIP_PROBLEM': {
+        state.timers.markSolved(tabId, now);
+        await persistTimers(state);
+        sendResponse({ ok: true });
+        return;
+      }
       case 'REQUEST_APPROACH_EVAL': {
         if (!state.limiter.tryAcquire(now)) {
           sendResponse({ ok: false, error: 'rate limited' });
