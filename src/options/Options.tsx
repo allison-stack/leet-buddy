@@ -126,6 +126,27 @@ export function Options() {
       </section>
 
       <section style={section}>
+        <h2>Backup</h2>
+        <button onClick={async () => {
+          const sync = await chrome.storage.sync.get(null);
+          const blob = new Blob([JSON.stringify(sync, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url; a.download = `leet-buddy-${new Date().toISOString().slice(0, 10)}.json`;
+          a.click(); URL.revokeObjectURL(url);
+        }}>Export progress</button>
+        <input type="file" accept="application/json" onChange={async (e) => {
+          const file = e.target.files?.[0]; if (!file) return;
+          const text = await file.text();
+          try {
+            const data = JSON.parse(text);
+            await chrome.storage.sync.set(data);
+            alert('Imported. Reload the options page to see changes.');
+          } catch { alert('Invalid file.'); }
+        }} style={{ marginLeft: 12 }} />
+      </section>
+
+      <section style={section}>
         <h2>Reset</h2>
         <button onClick={async () => {
           if (!confirm('Erase all settings and progress?')) return;
