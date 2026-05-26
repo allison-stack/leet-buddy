@@ -15,18 +15,49 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
   (async () => {
     const state = await getState();
     const tabId = sender.tab?.id ?? ('tabId' in msg ? msg.tabId : undefined);
-    if (tabId === undefined) { sendResponse({ ok: false, error: 'no tabId' }); return; }
     const now = Date.now();
 
     switch (msg.type) {
+      case 'GET_POPUP_STATE': {
+        const { getProblems, getDailyLog } = await import('@/shared/storage');
+        const { dueReviews, isoToday } = await import('./scheduler');
+        const problems = await getProblems();
+        const log = await getDailyLog();
+        const due = dueReviews(problems, now);
+        const today = isoToday(now);
+        const entry = log[today];
+        const streak = computeStreak(log, now);
+        sendResponse({
+          ok: true,
+          payload: {
+            todaysProblem: entry ? { slug: entry.slug, title: problems[entry.slug]?.title ?? entry.slug,
+                                     difficulty: problems[entry.slug]?.difficulty ?? 'medium' } : null,
+            todaysProblemCompleted: !!entry?.completed,
+            reviewsDue: due.length,
+            streakDays: streak,
+            tokensUsedToday: 0, // wired in Task 33
+          },
+        });
+        return;
+      }
       case 'TIMER_START':
+        if (tabId === undefined) { sendResponse({ ok: false, error: 'no tabId' }); return; }
         state.timers.start(tabId, msg.slug, msg.difficulty, durationFor(msg.difficulty), now);
         break;
-      case 'TIMER_PAUSE': state.timers.pause(tabId, now); break;
-      case 'TIMER_RESUME': state.timers.resume(tabId, now); break;
-      case 'TIMER_RESET': state.timers.reset(tabId, now); break;
-      case 'GET_TIMER_STATE': break;
+      case 'TIMER_PAUSE':
+        if (tabId === undefined) { sendResponse({ ok: false, error: 'no tabId' }); return; }
+        state.timers.pause(tabId, now); break;
+      case 'TIMER_RESUME':
+        if (tabId === undefined) { sendResponse({ ok: false, error: 'no tabId' }); return; }
+        state.timers.resume(tabId, now); break;
+      case 'TIMER_RESET':
+        if (tabId === undefined) { sendResponse({ ok: false, error: 'no tabId' }); return; }
+        state.timers.reset(tabId, now); break;
+      case 'GET_TIMER_STATE':
+        if (tabId === undefined) { sendResponse({ ok: false, error: 'no tabId' }); return; }
+        break;
       case 'MARK_SOLVED': {
+        if (tabId === undefined) { sendResponse({ ok: false, error: 'no tabId' }); return; }
         const { getProblems, upsertProblem } = await import('@/shared/storage');
         const { initialSm2State } = await import('@/shared/sm2');
         const all = await getProblems();
@@ -57,6 +88,7 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
         return;
       }
       case 'SKIP_PROBLEM': {
+        if (tabId === undefined) { sendResponse({ ok: false, error: 'no tabId' }); return; }
         state.timers.markSolved(tabId, now);
         await persistTimers(state);
         sendResponse({ ok: true });
@@ -114,7 +146,9 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
       default: break; // other message types handled in later tasks
     }
     await persistTimers(state);
-    sendResponse({ ok: true, snapshot: state.timers.snapshot(tabId, now) });
+    if (tabId !== undefined) {
+      sendResponse({ ok: true, snapshot: state.timers.snapshot(tabId, now) });
+    }
   })();
   return true; // async response
 });
@@ -162,4 +196,15 @@ function parseApproachReply(text: string): { verdict: 'validate' | 'redirect' | 
     verdict: (verdictMatch?.[1]?.toLowerCase() as 'validate' | 'redirect' | 'clarify') ?? 'clarify',
     message: messageMatch?.[1]?.trim() ?? text.trim(),
   };
+}
+
+function computeStreak(log: Record<string, { completed: boolean }>, now: number): number {
+  let streak = 0;
+  const d = new Date(now);
+  while (true) {
+    const key = d.toISOString().slice(0, 10);
+    if (log[key]?.completed) { streak++; d.setDate(d.getDate() - 1); }
+    else break;
+  }
+  return streak;
 }

@@ -10,7 +10,8 @@ export type ContentToWorker =
   | { type: 'REQUEST_HINT'; payload: HintRequest }
   | { type: 'MARK_SOLVED'; slug: string; title: string; difficulty: Difficulty; hintTierUsed: 0 | 1 | 2 | 3 | 4 }
   | { type: 'RATE_SOLVE'; slug: string; quality: 1 | 3 | 4 | 5 }
-  | { type: 'SKIP_PROBLEM'; slug: string };
+  | { type: 'SKIP_PROBLEM'; slug: string }
+  | { type: 'GET_POPUP_STATE' };
 
 export type WorkerToContent =
   | { type: 'TIMER_TICK'; tabId: number; remainingSeconds: number; status: TimerStatus }
