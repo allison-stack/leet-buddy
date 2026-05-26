@@ -1,0 +1,50 @@
+export const BLIND_75: string[] = [
+  // Arrays & Hashing
+  'two-sum', 'contains-duplicate', 'valid-anagram', 'group-anagrams',
+  'top-k-frequent-elements', 'product-of-array-except-self', 'encode-and-decode-strings',
+  'longest-consecutive-sequence',
+  // Two Pointers
+  'valid-palindrome', '3sum', 'container-with-most-water',
+  // Sliding Window
+  'best-time-to-buy-and-sell-stock', 'longest-substring-without-repeating-characters',
+  'longest-repeating-character-replacement', 'minimum-window-substring',
+  // Stack
+  'valid-parentheses',
+  // Binary Search
+  'find-minimum-in-rotated-sorted-array', 'search-in-rotated-sorted-array',
+  // Linked List
+  'reverse-linked-list', 'merge-two-sorted-lists', 'reorder-list',
+  'remove-nth-node-from-end-of-list', 'linked-list-cycle', 'merge-k-sorted-lists',
+  // Trees
+  'invert-binary-tree', 'maximum-depth-of-binary-tree', 'same-tree', 'subtree-of-another-tree',
+  'lowest-common-ancestor-of-a-binary-search-tree', 'binary-tree-level-order-traversal',
+  'validate-binary-search-tree', 'kth-smallest-element-in-a-bst',
+  'construct-binary-tree-from-preorder-and-inorder-traversal',
+  'binary-tree-maximum-path-sum', 'serialize-and-deserialize-binary-tree',
+  // Tries
+  'implement-trie-prefix-tree', 'design-add-and-search-words-data-structure', 'word-search-ii',
+  // Heap / Priority Queue
+  'find-median-from-data-stream',
+  // Backtracking
+  'combination-sum', 'word-search',
+  // Graphs
+  'number-of-islands', 'clone-graph', 'pacific-atlantic-water-flow',
+  'course-schedule', 'graph-valid-tree', 'number-of-connected-components-in-an-undirected-graph',
+  // Advanced Graphs
+  'alien-dictionary',
+  // 1-D Dynamic Programming
+  'climbing-stairs', 'house-robber', 'house-robber-ii', 'longest-palindromic-substring',
+  'palindromic-substrings', 'decode-ways', 'coin-change', 'maximum-product-subarray',
+  'word-break', 'longest-increasing-subsequence',
+  // 2-D Dynamic Programming
+  'unique-paths', 'longest-common-subsequence',
+  // Greedy
+  'maximum-subarray', 'jump-game',
+  // Intervals
+  'insert-interval', 'merge-intervals', 'non-overlapping-intervals',
+  'meeting-rooms', 'meeting-rooms-ii',
+  // Math & Geometry
+  'rotate-image', 'spiral-matrix', 'set-matrix-zeroes',
+  // Bit Manipulation
+  'number-of-1-bits', 'counting-bits', 'reverse-bits', 'missing-number', 'sum-of-two-integers',
+];
