@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { getSettings, setSettings, getProblems, upsertProblem, defaultSettings } from '@/shared/storage';
 
 const syncStore = new Map<string, unknown>();
@@ -7,18 +7,15 @@ const localStore = new Map<string, unknown>();
 beforeEach(() => {
   syncStore.clear();
   localStore.clear();
-  // @ts-expect-error mocking chrome
-  globalThis.chrome = {
-    storage: {
-      sync: {
-        get: (k: string) => Promise.resolve(syncStore.has(k) ? { [k]: syncStore.get(k) } : {}),
-        set: (obj: Record<string, unknown>) => { Object.entries(obj).forEach(([k, v]) => syncStore.set(k, v)); return Promise.resolve(); },
-      },
-      local: {
-        get: (k: string) => Promise.resolve(localStore.has(k) ? { [k]: localStore.get(k) } : {}),
-        set: (obj: Record<string, unknown>) => { Object.entries(obj).forEach(([k, v]) => localStore.set(k, v)); return Promise.resolve(); },
-      },
+  const mockArea = (store: Map<string, unknown>) => ({
+    get: (k: string) => Promise.resolve(store.has(k) ? { [k]: store.get(k) } : {}),
+    set: (obj: Record<string, unknown>) => {
+      Object.entries(obj).forEach(([k, v]) => store.set(k, v));
+      return Promise.resolve();
     },
+  });
+  (globalThis as unknown as { chrome: unknown }).chrome = {
+    storage: { sync: mockArea(syncStore), local: mockArea(localStore) },
   };
 });
 
