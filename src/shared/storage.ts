@@ -8,7 +8,6 @@ export const defaultSettings: Settings = {
   },
   dailyReminder: { enabled: true, time: '09:00' },
   dailySource: 'lc-daily',
-  newTabOverride: false,
   timerOverrides: { easy: 180, medium: 300, hard: 600 },
   substantiveCodeThreshold: 30,
   hourlyRequestCap: 20,

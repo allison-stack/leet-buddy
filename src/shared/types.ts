@@ -22,7 +22,6 @@ export interface Settings {
   dailyReminder: { enabled: boolean; time: string /* HH:mm */ };
   dailySource: DailySource;
   companyTag?: string;
-  newTabOverride: boolean;
   timerOverrides: { easy: number; medium: number; hard: number /* seconds */ };
   substantiveCodeThreshold: number; // default 30
   hourlyRequestCap: number; // default 20

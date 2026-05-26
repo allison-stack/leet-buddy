@@ -16,9 +16,6 @@ export default defineManifest({
     default_icon: 'public/icons/32.png',
   },
   options_page: 'src/options/index.html',
-  chrome_url_overrides: {
-    newtab: 'src/newtab/index.html',
-  },
   background: {
     service_worker: 'src/background/worker.ts',
     type: 'module',

@@ -100,12 +100,6 @@ export function Options() {
             <p style={note}>{SOURCES.find(src => src.id === s.dailySource)?.note}</p>
           )}
         </div>
-        <label style={{ display: 'block', marginTop: 8 }}>
-          <input type="checkbox" checked={s.newTabOverride}
-            onChange={e => save({ ...s, newTabOverride: e.target.checked })} />
-          Override new-tab page with today's problem
-        </label>
-        <p style={note}>If off, the new-tab page shows a minimal placeholder (Chrome doesn't allow restoring the native new-tab without uninstalling the extension).</p>
       </section>
 
       <section style={section}>
