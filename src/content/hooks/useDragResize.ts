@@ -1,5 +1,3 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-
 const MIN_W = 240;
 const MAX_W = 600;
 const MIN_H = 80;
