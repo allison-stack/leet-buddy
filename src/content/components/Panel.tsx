@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { slugFromUrl, readTitle, readDifficulty, readProblemStatement, onAcceptedVerdict } from '../leetcode-dom';
 import { readMonacoContents, isSubstantive } from '../editor';
 import { sendToWorker } from '@/shared/messages';
-import type { TimerStatus } from '@/shared/messages';
+import type { ContentToWorker, TimerStatus } from '@/shared/messages';
 import type { Difficulty, ApproachEvalResponse } from '@/shared/types';
 import { Timer } from './Timer';
 import { ApproachPrompt } from './ApproachPrompt';
@@ -74,6 +74,14 @@ export function Panel() {
 
   if (!slug) return null;
 
+  async function sendTimerControl(msg: ContentToWorker) {
+    const r = await sendToWorker<{ ok: boolean; snapshot?: { status: TimerStatus; remainingSeconds: number } }>(msg);
+    if (r?.ok && r.snapshot) {
+      setStatus(r.snapshot.status);
+      setRemaining(r.snapshot.remainingSeconds);
+    }
+  }
+
   return (
     <div className="lb-root">
       <div className="lb-header">
@@ -82,9 +90,9 @@ export function Panel() {
       </div>
       <div style={{ opacity: 0.7, fontSize: 11 }}>{title} · {difficulty}</div>
       <div className="lb-row">
-        <button className="lb-btn" onClick={() => sendToWorker({ type: 'TIMER_PAUSE', tabId: -1 })}>Pause</button>
-        <button className="lb-btn" onClick={() => sendToWorker({ type: 'TIMER_RESUME', tabId: -1 })}>Resume</button>
-        <button className="lb-btn" onClick={() => sendToWorker({ type: 'TIMER_RESET', tabId: -1 })}>Reset</button>
+        <button className="lb-btn" onClick={() => void sendTimerControl({ type: 'TIMER_PAUSE', tabId: -1 })}>Pause</button>
+        <button className="lb-btn" onClick={() => void sendTimerControl({ type: 'TIMER_RESUME', tabId: -1 })}>Resume</button>
+        <button className="lb-btn" onClick={() => void sendTimerControl({ type: 'TIMER_RESET', tabId: -1 })}>Reset</button>
         <button className="lb-btn" onClick={() => {
           if (!slug) return;
           setPhase('solved');
