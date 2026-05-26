@@ -2,11 +2,13 @@ import { getState, persistTimers, buildProviderConfigs, chat } from './state';
 import type { ContentToWorker, WorkerToContent } from '@/shared/messages';
 import type { ProblemRecord } from '@/shared/types';
 import { TIMER_TICK_MS } from '@/shared/constants';
+import { scheduleDailyAlarm, fireDailyReminder } from './alarms';
 
 console.log('[leet-buddy] worker boot');
 
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener(async () => {
   chrome.alarms.create('timer-tick', { periodInMinutes: TIMER_TICK_MS / 60_000 });
+  await scheduleDailyAlarm();
 });
 
 chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse) => {
@@ -118,6 +120,10 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
 });
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name === 'daily-reminder') {
+    await fireDailyReminder();
+    return;
+  }
   if (alarm.name !== 'timer-tick') return;
   const state = await getState();
   const now = Date.now();
@@ -139,6 +145,10 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
   const state = await getState();
   state.timers.clear(tabId);
   await persistTimers(state);
+});
+
+chrome.storage.onChanged.addListener(async (changes, area) => {
+  if (area === 'sync' && 'settings' in changes) await scheduleDailyAlarm();
 });
 
 function durationFor(difficulty: 'easy' | 'medium' | 'hard'): number {
