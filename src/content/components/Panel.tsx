@@ -6,6 +6,7 @@ import type { TimerStatus } from '@/shared/messages';
 import type { Difficulty, ApproachEvalResponse } from '@/shared/types';
 import { Timer } from './Timer';
 import { ApproachPrompt } from './ApproachPrompt';
+import { HintLadder } from './HintLadder';
 
 type Phase = 'timing' | 'approach' | 'hint' | 'solved';
 
@@ -91,6 +92,15 @@ export function Panel() {
         <div className="lb-hint">
           <strong>{approachResult.verdict.toUpperCase()}:</strong> {approachResult.message}
         </div>
+      )}
+
+      {phase === 'hint' && (
+        <HintLadder
+          slug={slug}
+          problemStatement={readProblemStatement()}
+          difficulty={difficulty}
+          userCode={readMonacoContents()}
+        />
       )}
     </div>
   );

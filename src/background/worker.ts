@@ -42,6 +42,37 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
         }
         return;
       }
+      case 'REQUEST_HINT': {
+        if (!state.limiter.tryAcquire(now)) {
+          sendResponse({ ok: false, error: 'rate limited — try again later or raise cap in settings' });
+          return;
+        }
+        try {
+          const { hintPrompt } = await import('@/llm/prompts');
+          const { stripCodeBlocks } = await import('@/llm/output-filter');
+          const { codeHash } = await import('./hint-cache');
+          const { persistCache } = await import('./state');
+
+          const ch = codeHash(msg.payload.userCode);
+          const cached = state.cache.get(msg.payload.slug, msg.payload.tier, ch);
+          if (cached) {
+            sendResponse({ ok: true, payload: { text: cached } });
+            return;
+          }
+
+          const { primary, fallback } = await buildProviderConfigs();
+          const { system, user } = hintPrompt(msg.payload);
+          const res = await chat({ systemPrompt: system, userPrompt: user, primary, fallback,
+            maxTokens: msg.payload.tier === 4 ? 600 : 250 });
+          const cleaned = stripCodeBlocks(res.text);
+          state.cache.set(msg.payload.slug, msg.payload.tier, ch, cleaned);
+          await persistCache(state);
+          sendResponse({ ok: true, payload: { text: cleaned } });
+        } catch (e) {
+          sendResponse({ ok: false, error: (e as Error).message });
+        }
+        return;
+      }
       default: break; // other message types handled in later tasks
     }
     await persistTimers(state);
