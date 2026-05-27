@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { slugFromUrl, readTitle, readDifficulty, readProblemStatement, onAcceptedVerdict } from '../leetcode-dom';
 import { readMonacoContents, isSubstantive } from '../editor';
 import { sendToWorker } from '@/shared/messages';
@@ -22,6 +22,9 @@ export function Panel() {
   const [approachResult, setApproachResult] = useState<ApproachEvalResponse | null>(null);
   const [starter, setStarter] = useState<string>('');
   const [hintTierUsed, setHintTierUsed] = useState<0 | 1 | 2 | 3 | 4>(0);
+
+  const phaseRef = useRef<Phase>(phase);
+  phaseRef.current = phase;
 
   useEffect(() => {
     const s = slugFromUrl();
@@ -68,6 +71,7 @@ export function Panel() {
   useEffect(() => {
     if (!slug) return;
     return onAcceptedVerdict(() => {
+      if (phaseRef.current === 'solved') return;
       setPhase('solved');
       void sendToWorker({ type: 'MARK_SOLVED', slug, title, difficulty, hintTierUsed });
     });
