@@ -22,6 +22,7 @@ export function Panel() {
   const [approachResult, setApproachResult] = useState<ApproachEvalResponse | null>(null);
   const [starter, setStarter] = useState<string>('');
   const [hintTierUsed, setHintTierUsed] = useState<0 | 1 | 2 | 3 | 4>(0);
+  const [dismissed, setDismissed] = useState(false);
 
   const phaseRef = useRef<Phase>(phase);
   phaseRef.current = phase;
@@ -33,6 +34,7 @@ export function Panel() {
     setTitle(readTitle());
     const d = readDifficulty();
     setDifficulty(d);
+    setDismissed(false);
     void sendToWorker({ type: 'TIMER_START', tabId: -1, slug: s, difficulty: d });
   }, []);
 
@@ -86,6 +88,7 @@ export function Panel() {
   };
 
   if (!slug) return null;
+  if (dismissed) return null;
 
   async function sendTimerControl(msg: ContentToWorker) {
     const r = await sendToWorker<{ ok: boolean; snapshot?: { status: TimerStatus; remainingSeconds: number } }>(msg);
@@ -144,7 +147,7 @@ export function Panel() {
         )}
 
         {phase === 'solved' && (
-          <SolveRating slug={slug} title={title} difficulty={difficulty} hintTierUsed={hintTierUsed} onRated={() => { /* keep panel as-is */ }} />
+          <SolveRating slug={slug} title={title} difficulty={difficulty} hintTierUsed={hintTierUsed} onRated={() => setDismissed(true)} />
         )}
       </div>
       <div className="lb-resize-grip" {...resizeGripProps}>
