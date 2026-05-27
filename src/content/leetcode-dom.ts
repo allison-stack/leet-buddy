@@ -30,10 +30,16 @@ export function readProblemStatement(): string {
 }
 
 export function onAcceptedVerdict(callback: () => void): () => void {
+  let fired = false;
   const observer = new MutationObserver(() => {
+    if (fired) return;
     const el = document.querySelector<HTMLElement>(SELECTORS.submissionResult);
-    if (el && /accepted/i.test(el.textContent ?? '')) callback();
+    if (el && /\baccepted\b/i.test(el.textContent ?? '')) {
+      fired = true;
+      observer.disconnect();
+      callback();
+    }
   });
-  observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+  observer.observe(document.body, { childList: true, subtree: true });
   return () => observer.disconnect();
 }
