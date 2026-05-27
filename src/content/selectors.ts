@@ -7,7 +7,7 @@ import { getLocal, setLocal } from '@/shared/storage';
 const HARDCODED = {
   problemTitle: 'div[class*="text-title-large"] a, a[href^="/problems/"]',
   difficultyPill: 'div[class*="text-difficulty-"]',
-  submissionResult: 'div[data-e2e-locator="submission-result"], span[class*="text-green"]',
+  submissionResult: '[data-e2e-locator="submission-result"]',
   monacoHost: '.monaco-editor',
 };
 
