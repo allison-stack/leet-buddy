@@ -113,6 +113,15 @@ export function Options() {
       </section>
 
       <section style={section}>
+        <h2>Notifications</h2>
+        <label>
+          <input type="checkbox" checked={s.timerSoundEnabled}
+            onChange={e => save({ ...s, timerSoundEnabled: e.target.checked })} />
+          Play a sound when the difficulty timer runs out
+        </label>
+      </section>
+
+      <section style={section}>
         <h2>Limits</h2>
         <label>Hourly request cap: <input type="number" min={1} max={500}
           value={s.hourlyRequestCap}
