@@ -15,6 +15,7 @@ export async function playTimerPing(): Promise<void> {
     ];
 
     const t0 = ctx.currentTime;
+    let maxRelEnd = 0;
     for (const t of tones) {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -28,10 +29,10 @@ export async function playTimerPing(): Promise<void> {
       osc.connect(gain).connect(ctx.destination);
       osc.start(start);
       osc.stop(end);
+      if (t.offset + t.dur > maxRelEnd) maxRelEnd = t.offset + t.dur;
     }
 
-    const totalMs = (tones[tones.length - 1].offset + tones[tones.length - 1].dur) * 1000 + 200;
-    setTimeout(() => { void ctx.close(); }, totalMs);
+    setTimeout(() => { void ctx.close(); }, maxRelEnd * 1000 + 200);
   } catch {
     /* ignore audio failures */
   }
