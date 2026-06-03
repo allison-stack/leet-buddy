@@ -17,3 +17,21 @@
 .lb-header:active { cursor: grabbing; }
 .lb-resize-grip { position: absolute; bottom: 0; right: 0; width: 18px; height: 18px; cursor: se-resize; display: flex; align-items: flex-end; justify-content: flex-end; padding: 3px; }
 .lb-body { overflow: auto; flex: 1; min-height: 0; }
+
+.lb-header__right { display: flex; align-items: center; gap: 8px; }
+.lb-header__minimize { background: transparent; color: #f0f0f0; border: none; cursor: pointer;
+  font-size: 14px; line-height: 1; padding: 2px 6px; border-radius: 4px; opacity: 0.7; }
+.lb-header__minimize:hover { background: #2d2d2d; opacity: 1; }
+
+.lb-bar { position: fixed; right: 16px; bottom: 16px; width: 320px; height: 32px;
+  display: flex; align-items: center; gap: 8px; padding: 0 10px;
+  background: #1a1a1a; color: #f0f0f0; border-radius: 9999px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.4); z-index: 2147483647;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; }
+.lb-bar__logo { font-weight: 700; font-size: 11px; letter-spacing: 0.5px; opacity: 0.6; }
+.lb-bar .lb-timer { font-size: 13px; flex: 1; }
+.lb-bar__btn { background: transparent; color: #f0f0f0; border: none; cursor: pointer;
+  font-size: 13px; line-height: 1; padding: 4px 6px; border-radius: 4px; opacity: 0.8; }
+.lb-bar__btn:hover { background: #2d2d2d; opacity: 1; }
+.lb-bar__solved { color: #ffa116; font-weight: 700; }
+.lb-bar__expand { margin-left: auto; }
