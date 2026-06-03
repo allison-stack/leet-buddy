@@ -57,3 +57,20 @@ export async function getLocal<T>(key: string): Promise<T | undefined> {
 export async function setLocal(key: string, value: unknown): Promise<void> {
   await chrome.storage.local.set({ [key]: value });
 }
+
+const PANEL_MINIMIZED_KEY = 'panel_minimized';
+
+export async function getPanelMinimized(slug: string): Promise<boolean> {
+  const map = await getLocal<Record<string, boolean>>(PANEL_MINIMIZED_KEY);
+  return map?.[slug] === true;
+}
+
+export async function setPanelMinimized(slug: string, value: boolean): Promise<void> {
+  const map = (await getLocal<Record<string, boolean>>(PANEL_MINIMIZED_KEY)) ?? {};
+  if (value) {
+    map[slug] = true;
+  } else {
+    delete map[slug];
+  }
+  await setLocal(PANEL_MINIMIZED_KEY, map);
+}
