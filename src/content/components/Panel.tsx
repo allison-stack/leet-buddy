@@ -10,7 +10,8 @@ import { HintLadder } from './HintLadder';
 import { SolveRating } from './SolveRating';
 import { MinimizedBar } from './MinimizedBar';
 import { useDragResize } from '../hooks/useDragResize';
-import { getPanelMinimized, setPanelMinimized } from '@/shared/storage';
+import { getPanelMinimized, setPanelMinimized, getSettings } from '@/shared/storage';
+import { playTimerPing } from '../sound';
 
 type Phase = 'timing' | 'approach' | 'hint' | 'solved';
 
@@ -68,6 +69,10 @@ export function Panel() {
       if (msg.type === 'TIMER_FIRED') {
         const code = readMonacoContents();
         setPhase(isSubstantive(code, starter, 30) ? 'hint' : 'approach');
+        void (async () => {
+          const settings = await getSettings();
+          if (settings.timerSoundEnabled) await playTimerPing();
+        })();
       }
     };
     chrome.runtime.onMessage.addListener(handler);
