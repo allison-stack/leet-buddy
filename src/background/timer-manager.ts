@@ -9,6 +9,7 @@ interface InternalState {
   pausedAt?: number;       // if paused
   accumulatedPausedMs: number;
   forcedStatus?: 'solved';
+  firedSent?: boolean;
 }
 
 export interface Snapshot {
@@ -50,6 +51,15 @@ export class TimerManager {
     s.pausedAt = undefined;
     s.accumulatedPausedMs = 0;
     s.forcedStatus = undefined;
+    s.firedSent = undefined;
+  }
+
+  /** Returns true once per fired transition; subsequent calls return false until reset/start. */
+  consumeFiredEvent(tabId: number): boolean {
+    const s = this.states.get(tabId);
+    if (!s || s.firedSent) return false;
+    s.firedSent = true;
+    return true;
   }
 
   markSolved(tabId: number, now: number): void {

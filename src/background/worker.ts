@@ -162,7 +162,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     if (!snap) continue;
     const msg: WorkerToContent = { type: 'TIMER_TICK', tabId, remainingSeconds: snap.remainingSeconds, status: snap.status };
     chrome.tabs.sendMessage(tabId, msg).catch(() => { /* tab closed */ });
-    if (snap.status === 'fired') {
+    if (snap.status === 'fired' && state.timers.consumeFiredEvent(tabId)) {
       const fired: WorkerToContent = { type: 'TIMER_FIRED', tabId, askForApproach: false /* refined in Task 22 */ };
       chrome.tabs.sendMessage(tabId, fired).catch(() => {});
     }

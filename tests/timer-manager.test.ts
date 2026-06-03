@@ -45,6 +45,23 @@ describe('TimerManager', () => {
     expect(s.remainingSeconds).toBe(150);
   });
 
+  it('consumeFiredEvent returns true once per fired transition', () => {
+    const tm = new TimerManager();
+    tm.start(1, 'x', 'easy', 180, 0);
+    // Before reaching zero, the flag mechanism still works as a one-shot.
+    expect(tm.consumeFiredEvent(1)).toBe(true);
+    expect(tm.consumeFiredEvent(1)).toBe(false);
+    // After reset, the one-shot rearms.
+    tm.reset(1, 1000);
+    expect(tm.consumeFiredEvent(1)).toBe(true);
+    expect(tm.consumeFiredEvent(1)).toBe(false);
+  });
+
+  it('consumeFiredEvent returns false for unknown tab', () => {
+    const tm = new TimerManager();
+    expect(tm.consumeFiredEvent(42)).toBe(false);
+  });
+
   it('serializes to plain JSON and rehydrates', () => {
     const tm = new TimerManager();
     tm.start(1, 'x', 'easy', 180, 0);
