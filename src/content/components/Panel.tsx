@@ -8,7 +8,9 @@ import { Timer } from './Timer';
 import { ApproachPrompt } from './ApproachPrompt';
 import { HintLadder } from './HintLadder';
 import { SolveRating } from './SolveRating';
+import { MinimizedBar } from './MinimizedBar';
 import { useDragResize } from '../hooks/useDragResize';
+import { getPanelMinimized, setPanelMinimized } from '@/shared/storage';
 
 type Phase = 'timing' | 'approach' | 'hint' | 'solved';
 
@@ -23,9 +25,11 @@ export function Panel() {
   const [starter, setStarter] = useState<string>('');
   const [hintTierUsed, setHintTierUsed] = useState<0 | 1 | 2 | 3 | 4>(0);
   const [dismissed, setDismissed] = useState(false);
+  const [minimized, setMinimized] = useState(false);
 
   const phaseRef = useRef<Phase>(phase);
   phaseRef.current = phase;
+  const userToggledMinimizedRef = useRef(false);
 
   useEffect(() => {
     const s = slugFromUrl();
@@ -79,7 +83,35 @@ export function Panel() {
     });
   }, [slug, title, difficulty, hintTierUsed]);
 
+  useEffect(() => {
+    if (!slug) return;
+    let cancelled = false;
+    userToggledMinimizedRef.current = false;
+    void getPanelMinimized(slug).then(value => {
+      if (cancelled) return;
+      if (userToggledMinimizedRef.current) return;
+      setMinimized(value);
+    });
+    return () => { cancelled = true; };
+  }, [slug]);
+
   const { pos, size, dragHandleProps, resizeGripProps } = useDragResize(slug);
+
+  function toggleMinimized(next: boolean) {
+    userToggledMinimizedRef.current = true;
+    setMinimized(next);
+    if (slug) void setPanelMinimized(slug, next);
+  }
+
+  function pauseToggle() {
+    void sendTimerControl({ type: status === 'paused' ? 'TIMER_RESUME' : 'TIMER_PAUSE', tabId: -1 });
+  }
+
+  function markSolved() {
+    if (!slug) return;
+    setPhase('solved');
+    void sendToWorker({ type: 'MARK_SOLVED', slug, title, difficulty, hintTierUsed });
+  }
 
   const rootStyle: React.CSSProperties = {
     width: size.width,
@@ -89,6 +121,18 @@ export function Panel() {
 
   if (!slug) return null;
   if (dismissed) return null;
+  if (minimized) {
+    return (
+      <MinimizedBar
+        remaining={remaining}
+        status={status}
+        phase={phase}
+        onPauseToggle={pauseToggle}
+        onMarkSolved={markSolved}
+        onExpand={() => toggleMinimized(false)}
+      />
+    );
+  }
 
   async function sendTimerControl(msg: ContentToWorker) {
     const r = await sendToWorker<{ ok: boolean; snapshot?: { status: TimerStatus; remainingSeconds: number } }>(msg);
@@ -105,7 +149,18 @@ export function Panel() {
           <span style={{ opacity: 0.3, marginRight: 6, fontSize: 12 }} aria-hidden="true">⠿</span>
           Leet Buddy
         </span>
-        <Timer remainingFromWorker={remaining} status={status} />
+        <span className="lb-header__right">
+          <Timer remainingFromWorker={remaining} status={status} />
+          <button
+            className="lb-header__minimize"
+            onClick={e => { e.stopPropagation(); toggleMinimized(true); }}
+            onPointerDown={e => e.stopPropagation()}
+            title="Minimize"
+            aria-label="Minimize panel"
+          >
+            ▾
+          </button>
+        </span>
       </div>
       <div className="lb-body">
         <div style={{ opacity: 0.7, fontSize: 11 }}>{title} · {difficulty}</div>
