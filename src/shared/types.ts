@@ -25,6 +25,7 @@ export interface Settings {
   timerOverrides: { easy: number; medium: number; hard: number /* seconds */ };
   substantiveCodeThreshold: number; // default 30
   hourlyRequestCap: number; // default 20
+  timerSoundEnabled: boolean;
 }
 
 export interface Sm2State {

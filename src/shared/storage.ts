@@ -11,6 +11,7 @@ export const defaultSettings: Settings = {
   timerOverrides: { easy: 180, medium: 300, hard: 600 },
   substantiveCodeThreshold: 30,
   hourlyRequestCap: 20,
+  timerSoundEnabled: true,
 };
 
 export async function getSettings(): Promise<Settings> {
