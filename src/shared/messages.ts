@@ -1,4 +1,4 @@
-import type { HintRequest, ApproachEvalRequest, ApproachEvalResponse, Difficulty } from './types';
+import type { HintRequest, ApproachEvalRequest, ApproachEvalResponse, Difficulty, Profile } from './types';
 
 export type ContentToWorker =
   | { type: 'TIMER_START'; tabId: number; slug: string; difficulty: Difficulty }
@@ -11,14 +11,19 @@ export type ContentToWorker =
   | { type: 'MARK_SOLVED'; slug: string; title: string; difficulty: Difficulty; hintTierUsed: 0 | 1 | 2 | 3 | 4 }
   | { type: 'RATE_SOLVE'; slug: string; quality: 1 | 3 | 4 | 5 }
   | { type: 'SKIP_PROBLEM'; slug: string }
-  | { type: 'GET_POPUP_STATE' };
+  | { type: 'GET_POPUP_STATE' }
+  | { type: 'AUTH_SEND_OTP'; email: string }
+  | { type: 'AUTH_VERIFY_OTP'; email: string; code: string }
+  | { type: 'AUTH_SIGN_OUT' }
+  | { type: 'GET_AUTH_STATE' };
 
 export type WorkerToContent =
   | { type: 'TIMER_TICK'; tabId: number; remainingSeconds: number; status: TimerStatus }
   | { type: 'TIMER_FIRED'; tabId: number; askForApproach: boolean }
   | { type: 'APPROACH_EVAL_RESULT'; payload: ApproachEvalResponse }
   | { type: 'HINT_RESULT'; tier: 1 | 2 | 3 | 4; text: string }
-  | { type: 'ERROR'; message: string };
+  | { type: 'ERROR'; message: string }
+  | { type: 'AUTH_STATE'; user: Profile | null };
 
 export type TimerStatus = 'idle' | 'running' | 'paused' | 'fired' | 'solved';
 
