@@ -6,6 +6,71 @@ Personal project. Patience and UX-feel matter more than feature count.
 
 ---
 
+## How to work in this repo
+
+Four guardrails. They bias toward caution over speed — for trivial tasks, use judgment, but when in doubt follow them.
+
+### 1. Think before coding
+
+Don't assume. Don't hide confusion. Surface tradeoffs.
+
+- State assumptions explicitly. If uncertain, ask before implementing.
+- If multiple interpretations exist, present them — don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop, name what's confusing, ask.
+
+Especially relevant here: a lot of leet-buddy's behavior depends on cross-process invariants (worker as sole `SupabaseClient` owner, multi-step popup flows must persist to `chrome.storage.local`, MV3 worker idles after ~30s, Shadow DOM panel). If you're about to make a change that touches one of those, surface what you're assuming first.
+
+### 2. Simplicity first
+
+Minimum code that solves the problem. Nothing speculative.
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios. Trust internal code and framework guarantees; only validate at system boundaries (user input, external APIs).
+- If you write 200 lines and 50 would do, rewrite it.
+
+Senior-engineer test: "Would they say this is overcomplicated?" If yes, simplify.
+
+### 3. Surgical changes
+
+Touch only what you must. Clean up only your own mess.
+
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style even if you'd write it differently. Prefer editing existing files over creating new ones.
+- If you notice unrelated dead code, mention it — don't delete it.
+
+Orphans your changes create (now-unused imports, variables, functions) — yes, clean those up. Pre-existing dead code — leave it unless asked.
+
+Every changed line should trace directly to the user's request.
+
+### 4. Goal-driven execution
+
+Define success criteria. Loop until verified.
+
+- "Add validation" → "Write tests for invalid inputs, then make them pass."
+- "Fix the bug" → "Write a test that reproduces it, then make it pass."
+- "Refactor X" → "Ensure tests pass before and after."
+
+For multi-step tasks, state a brief plan up front:
+
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") need constant clarification.
+
+Baseline verification in this repo: `npm run typecheck && npm test`. Add `npm run build` if you touched the manifest, content-script entry, or service-worker entry. For UI changes, load the unpacked extension and click through the affected flow — type checks and tests verify code correctness, not feature correctness.
+
+---
+
+**Working signal:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, clarifying questions before implementation rather than after mistakes.
+
+---
+
 ## Commands
 
 ```bash
@@ -69,12 +134,13 @@ The codebase splits state across three tiers. Don't conflate them.
 
 ## Conventions
 
+Project-specific rules. (Generic "don't add features beyond the task," "prefer editing over creating," etc. live above under [How to work in this repo](#how-to-work-in-this-repo) — not duplicated here.)
+
 - **Commits**: one line, imperative, no body, no co-author, no AI footer. `git add <specific files>` — never `git add -A` / `.`.
 - **Don't commit**: `docs/`, `wiki/`, design specs, implementation plans, `.env`, `~/.claude/plans/`. These are intentionally on-disk but untracked.
 - **Credentials**: `.env` + `VITE_*` prefix, never inlined into source. Type new vars in `src/vite-env.d.ts` so `noUncheckedIndexedAccess` doesn't infect callers with `string | undefined`. Server-only secrets (e.g. Resend API key inside the Phase 4 Edge Function) go through Supabase secrets, never `.env`.
 - **Comments**: write none unless the WHY is non-obvious (hidden constraint, subtle invariant, workaround for a specific bug, surprising behavior). Don't explain the WHAT — names do that. Don't reference task / PR / issue numbers — they rot.
-- **Scope**: don't add features beyond the task. No speculative abstractions. No unrequested error handling. Three similar lines beats a premature abstraction.
-- Prefer **editing** existing files over creating new ones. Prefer **inline** execution over spawning subagents for mechanical tooling commands.
+- **Subagent dispatch**: for mechanical tooling commands (`npm install`, regenerate types, run tests-then-commit), prefer inline execution over spawning a subagent — haiku-tier subagents have hit sandbox permission walls on `npm` in this repo.
 
 ---
 
