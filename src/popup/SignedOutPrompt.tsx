@@ -1,9 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Profile } from '@/shared/types';
 
 type Step = 'email' | 'code';
 
 interface Props { onSignedIn: (user: Profile) => void }
+
+// chrome.storage.local key under which we persist mid-flow sign-in state, so
+// the popup can be closed (to switch tabs and check email) without losing the
+// "we already sent you a code for <email>" context.
+const SIGN_IN_STATE_KEY = 'signin_state';
+
+interface PersistedState { step: Step; email: string }
 
 export function SignedOutPrompt({ onSignedIn }: Props) {
   const [step, setStep] = useState<Step>('email');
@@ -12,6 +19,18 @@ export function SignedOutPrompt({ onSignedIn }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Restore mid-flow state on mount (popup may have been closed/reopened
+  // between sending the code and entering it).
+  useEffect(() => {
+    chrome.storage.local.get(SIGN_IN_STATE_KEY).then((res) => {
+      const saved = res[SIGN_IN_STATE_KEY] as PersistedState | undefined;
+      if (saved?.step === 'code' && saved.email) {
+        setStep('code');
+        setEmail(saved.email);
+      }
+    });
+  }, []);
+
   const sendCode = async () => {
     setBusy(true); setError(null);
     const res: { ok: boolean; error?: string } = await chrome.runtime.sendMessage({
@@ -19,6 +38,7 @@ export function SignedOutPrompt({ onSignedIn }: Props) {
     });
     setBusy(false);
     if (!res.ok) { setError(res.error ?? 'Failed to send code'); return; }
+    await chrome.storage.local.set({ [SIGN_IN_STATE_KEY]: { step: 'code', email } });
     setStep('code');
   };
 
@@ -29,7 +49,13 @@ export function SignedOutPrompt({ onSignedIn }: Props) {
     });
     setBusy(false);
     if (!res.ok || !res.user) { setError(res.error ?? 'Invalid code'); return; }
+    await chrome.storage.local.remove(SIGN_IN_STATE_KEY);
     onSignedIn(res.user);
+  };
+
+  const resetToEmailStep = async () => {
+    await chrome.storage.local.remove(SIGN_IN_STATE_KEY);
+    setStep('email'); setCode(''); setError(null);
   };
 
   return (
@@ -67,7 +93,7 @@ export function SignedOutPrompt({ onSignedIn }: Props) {
           <button onClick={verify} disabled={busy || code.length !== 6} style={btn}>
             {busy ? 'Verifying…' : 'Verify'}
           </button>
-          <button onClick={() => { setStep('email'); setCode(''); setError(null); }} style={linkBtn}>
+          <button onClick={resetToEmailStep} style={linkBtn}>
             Use a different email
           </button>
         </>

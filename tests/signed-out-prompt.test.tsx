@@ -3,10 +3,20 @@ import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/re
 import { SignedOutPrompt } from '@/popup/SignedOutPrompt';
 
 const sendMessage = vi.fn();
+const storageGet = vi.fn(async () => ({}));
+const storageSet = vi.fn(async () => {});
+const storageRemove = vi.fn(async () => {});
 
 beforeEach(() => {
   sendMessage.mockReset();
-  (globalThis as unknown as { chrome: unknown }).chrome = { runtime: { sendMessage } };
+  storageGet.mockReset();
+  storageGet.mockResolvedValue({});
+  storageSet.mockReset();
+  storageRemove.mockReset();
+  (globalThis as unknown as { chrome: unknown }).chrome = {
+    runtime: { sendMessage },
+    storage: { local: { get: storageGet, set: storageSet, remove: storageRemove } },
+  };
 });
 
 afterEach(() => cleanup());
@@ -39,6 +49,43 @@ describe('SignedOutPrompt', () => {
     fireEvent.click(screen.getByRole('button', { name: /send code/i }));
     await waitFor(() => expect(screen.getByText(/rate limited/)).toBeTruthy());
     expect(screen.queryByPlaceholderText(/code/i)).toBeNull();
+  });
+
+  it('restores the code step from chrome.storage.local if the popup re-opens mid-flow', async () => {
+    storageGet.mockResolvedValueOnce({
+      signin_state: { step: 'code', email: 'alice@example.com' },
+    });
+    render(<SignedOutPrompt onSignedIn={() => {}} />);
+    await waitFor(() => expect(screen.getByPlaceholderText(/code/i)).toBeTruthy());
+    expect(screen.getByText(/alice@example\.com/)).toBeTruthy();
+  });
+
+  it('persists step+email after Send code so the popup can be reopened', async () => {
+    sendMessage.mockResolvedValueOnce({ ok: true });
+    render(<SignedOutPrompt onSignedIn={() => {}} />);
+    fireEvent.change(screen.getByPlaceholderText(/email/i), {
+      target: { value: 'alice@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /send code/i }));
+    await waitFor(() => expect(screen.getByPlaceholderText(/code/i)).toBeTruthy());
+    expect(storageSet).toHaveBeenCalledWith({
+      signin_state: { step: 'code', email: 'alice@example.com' },
+    });
+  });
+
+  it('clears persisted state on successful verify', async () => {
+    storageGet.mockResolvedValueOnce({
+      signin_state: { step: 'code', email: 'alice@example.com' },
+    });
+    const fakeUser = {
+      id: 'u', handle: 'alice', display_name: 'alice', avatar_color: 'x', created_at: 't',
+    };
+    sendMessage.mockResolvedValueOnce({ ok: true, user: fakeUser });
+    render(<SignedOutPrompt onSignedIn={() => {}} />);
+    await waitFor(() => screen.getByPlaceholderText(/code/i));
+    fireEvent.change(screen.getByPlaceholderText(/code/i), { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: /verify/i }));
+    await waitFor(() => expect(storageRemove).toHaveBeenCalledWith('signin_state'));
   });
 
   it('verifies the code and calls onSignedIn with the user', async () => {
