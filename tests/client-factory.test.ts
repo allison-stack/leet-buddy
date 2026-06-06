@@ -3,8 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 const store: Record<string, unknown> = {};
 beforeEach(() => {
   for (const k of Object.keys(store)) delete store[k];
-  // @ts-expect-error — define chrome global for vitest
-  globalThis.chrome = {
+  (globalThis as unknown as { chrome: unknown }).chrome = {
     storage: {
       local: {
         get: vi.fn(async (key: string) => ({ [key]: store[key] })),
@@ -16,8 +15,9 @@ beforeEach(() => {
   // happy-dom doesn't provide WebSocket; supabase-js's createClient eagerly
   // builds a RealtimeClient that requires one. We don't use realtime in this
   // extension, but the constructor still needs a class to instantiate.
-  // @ts-expect-error — stub for test env only
-  globalThis.WebSocket = class { close() {} send() {} addEventListener() {} removeEventListener() {} };
+  (globalThis as unknown as { WebSocket: unknown }).WebSocket = class {
+    close() {} send() {} addEventListener() {} removeEventListener() {}
+  };
   vi.resetModules();
 });
 
