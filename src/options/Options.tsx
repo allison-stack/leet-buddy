@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getSettings, setSettings, defaultSettings, setLocal, getLocal } from '@/shared/storage';
-import type { Settings, LlmProvider, DailySource } from '@/shared/types';
+import type { Settings, LlmProvider, DailySource, Profile } from '@/shared/types';
 
 const PROVIDERS: Array<{ id: LlmProvider; label: string; model: string; note: string }> = [
   { id: 'groq', label: 'Groq (default, free)', model: 'llama-3.3-70b-versatile',
@@ -25,11 +25,14 @@ const SOURCES: Array<{ id: DailySource; label: string; note?: string }> = [
 export function Options() {
   const [s, setS] = useState<Settings | null>(null);
   const [localKey, setLocalKey] = useState<string>('');
+  const [user, setUser] = useState<Profile | null>(null);
 
   useEffect(() => {
     (async () => {
       setS(await getSettings());
       setLocalKey((await getLocal<string>('api_key')) ?? '');
+      const authRes = await chrome.runtime.sendMessage({ type: 'GET_AUTH_STATE' });
+      setUser(authRes?.user ?? null);
     })();
   }, []);
 
@@ -147,6 +150,27 @@ export function Options() {
             alert('Imported. Reload the options page to see changes.');
           } catch { alert('Invalid file.'); }
         }} style={{ marginLeft: 12 }} />
+      </section>
+
+      <section style={section}>
+        <h2>Account</h2>
+        {user ? (
+          <>
+            <div>Signed in as <strong>@{user.handle}</strong></div>
+            <div style={note}>Display name: {user.display_name}</div>
+            <button
+              style={{ marginTop: 8 }}
+              onClick={async () => {
+                await chrome.runtime.sendMessage({ type: 'AUTH_SIGN_OUT' });
+                setUser(null);
+              }}
+            >
+              Sign out
+            </button>
+          </>
+        ) : (
+          <div style={note}>Not signed in. Open the extension popup to sign in.</div>
+        )}
       </section>
 
       <section style={section}>
