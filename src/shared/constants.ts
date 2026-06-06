@@ -26,3 +26,12 @@ export const SR_QUALITY = {
   GOOD: 4,
   EASY: 5,
 } as const;
+
+// Supabase project — read from .env at build time, inlined by Vite.
+// Set values in .env (see .env.example for shape). Safe to ship: the anon key
+// is designed for client-side use; RLS enforces actual data access.
+export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// Storage key under which supabase-js persists the auth session.
+export const SUPABASE_SESSION_STORAGE_KEY = 'supabase.auth.session';
