@@ -31,10 +31,14 @@ export interface AuthSupabase {
   };
   from(table: 'profiles'): {
     select(cols: string): {
-      eq(col: 'id' | 'handle', val: string): { maybeSingle(): Promise<{ data: Profile | null; error: Error | null }> };
+      eq(col: 'id' | 'handle', val: string): {
+        maybeSingle(): PromiseLike<{ data: Profile | null; error: Error | null }>;
+      };
     };
     insert(row: ProfileInsert): {
-      select(): { single(): Promise<{ data: Profile | null; error: { code?: string; message: string } | null }> };
+      select(): {
+        single(): PromiseLike<{ data: Profile | null; error: { code?: string; message: string } | null }>;
+      };
     };
   };
 }

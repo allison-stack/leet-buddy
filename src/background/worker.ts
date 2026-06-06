@@ -9,8 +9,22 @@ import { initialSm2State, updateSm2 } from '@/shared/sm2';
 import { approachEvalPrompt, hintPrompt } from '@/llm/prompts';
 import { stripCodeBlocks } from '@/llm/output-filter';
 import { codeHash } from './hint-cache';
+import { getSupabase } from '@/shared/supabase/client-factory';
+import { Auth, type AuthSupabase } from './challenger/auth';
 
 console.log('[leet-buddy] worker boot');
+
+// Cast: AuthSupabase is a structurally-compatible subset of the real
+// SupabaseClient. Direct assignment trips TS2589 (deep generic instantiation
+// from the Database<...> chain), so we narrow at the boundary.
+const sbForAuth = getSupabase() as unknown as AuthSupabase;
+const auth = new Auth(sbForAuth);
+
+// Broadcast auth state changes to any listening popups / content scripts.
+sbForAuth.auth.onAuthStateChange(async () => {
+  const user = await auth.getCurrentUser();
+  chrome.runtime.sendMessage({ type: 'AUTH_STATE', user }).catch(() => { /* no popup open */ });
+});
 
 chrome.runtime.onInstalled.addListener(async () => {
   chrome.alarms.create('timer-tick', { periodInMinutes: TIMER_TICK_MS / 60_000 });
@@ -136,6 +150,26 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
         } catch (e) {
           sendResponse({ ok: false, error: (e as Error).message });
         }
+        return;
+      }
+      case 'AUTH_SEND_OTP': {
+        const result = await auth.sendOtp(msg.email);
+        sendResponse(result);
+        return;
+      }
+      case 'AUTH_VERIFY_OTP': {
+        const result = await auth.verifyOtp(msg.email, msg.code);
+        sendResponse(result);
+        return;
+      }
+      case 'AUTH_SIGN_OUT': {
+        await auth.signOut();
+        sendResponse({ ok: true });
+        return;
+      }
+      case 'GET_AUTH_STATE': {
+        const user = await auth.getCurrentUser();
+        sendResponse({ ok: true, user });
         return;
       }
       default: break; // other message types handled in later tasks
