@@ -2,13 +2,18 @@ import { useEffect, useState } from 'react';
 import type { PopupState } from '@/shared/messages';
 import type { Profile } from '@/shared/types';
 import { SignedOutPrompt } from './SignedOutPrompt';
+import { FriendsTab } from './FriendsTab';
+import { InboxTab } from './InboxTab';
+import { StatsTab } from './StatsTab';
 
 type AuthState = 'loading' | 'signed-out' | 'signed-in';
+type Tab = 'inbox' | 'friends' | 'stats';
 
 export function Popup() {
   const [authState, setAuthState] = useState<AuthState>('loading');
   const [user, setUser] = useState<Profile | null>(null);
   const [state, setState] = useState<PopupState | null>(null);
+  const [tab, setTab] = useState<Tab>('friends');
 
   useEffect(() => {
     chrome.runtime.sendMessage({ type: 'GET_AUTH_STATE' }).then((r: { ok: boolean; user: Profile | null }) => {
@@ -37,30 +42,54 @@ export function Popup() {
   if (authState === 'signed-out') {
     return <SignedOutPrompt onSignedIn={(u) => { setUser(u); setAuthState('signed-in'); }} />;
   }
-  if (!state) return <div style={{ padding: 16, width: 280 }}>Loading…</div>;
 
   return (
-    <div style={{ padding: 16, width: 320, fontFamily: 'system-ui', fontSize: 13 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ margin: 0 }}>Leet Buddy</h3>
+    <div style={{ width: 360, fontFamily: 'system-ui', fontSize: 13 }}>
+      <header style={headerStyle}>
+        <h3 style={{ margin: 0, fontSize: 14 }}>Leet Buddy</h3>
         {user && <span style={{ fontSize: 11, opacity: 0.7 }}>@{user.handle}</span>}
-      </div>
-      <div style={{ marginTop: 12 }}>
-        <div style={{ opacity: 0.7 }}>Today</div>
-        {state.todaysProblem ? (
-          <a href={`https://leetcode.com/problems/${state.todaysProblem.slug}/`} target="_blank" rel="noreferrer"
-             style={{ color: '#ffa116' }}>
-            {state.todaysProblem.title} ({state.todaysProblem.difficulty})
-            {state.todaysProblemCompleted && ' ✓'}
-          </a>
-        ) : 'No pick yet.'}
-      </div>
-      <div style={{ marginTop: 8 }}>Reviews due: <strong>{state.reviewsDue}</strong></div>
-      <div style={{ marginTop: 4 }}>Streak: <strong>{state.streakDays}</strong> day(s)</div>
-      <div style={{ marginTop: 4, opacity: 0.7 }}>Tokens used today: {state.tokensUsedToday}</div>
-      <div style={{ marginTop: 12 }}>
-        <button onClick={() => chrome.runtime.openOptionsPage()}>Settings</button>
-      </div>
+      </header>
+
+      <nav style={navStyle} role="tablist">
+        <TabButton current={tab} value="inbox"   label="Inbox"   onClick={setTab} />
+        <TabButton current={tab} value="friends" label="Friends" onClick={setTab} />
+        <TabButton current={tab} value="stats"   label="Stats"   onClick={setTab} />
+      </nav>
+
+      {tab === 'inbox'   && <InboxTab />}
+      {tab === 'friends' && <FriendsTab />}
+      {tab === 'stats'   && (state
+        ? <StatsTab state={state} />
+        : <div style={{ padding: 16, opacity: 0.7 }}>Loading…</div>)}
     </div>
   );
 }
+
+interface TabButtonProps { current: Tab; value: Tab; label: string; onClick: (t: Tab) => void }
+
+function TabButton({ current, value, label, onClick }: TabButtonProps) {
+  const active = current === value;
+  return (
+    <button
+      role="tab"
+      aria-selected={active}
+      onClick={() => onClick(value)}
+      style={{
+        flex: 1, padding: '8px 0',
+        background: 'transparent', border: 0,
+        borderBottom: active ? '2px solid #2563eb' : '2px solid transparent',
+        fontWeight: active ? 600 : 400, cursor: 'pointer',
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+const headerStyle: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+  padding: '12px 16px', borderBottom: '1px solid #eee',
+};
+const navStyle: React.CSSProperties = {
+  display: 'flex', borderBottom: '1px solid #eee',
+};
