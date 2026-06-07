@@ -141,7 +141,7 @@ Project-specific rules. (Generic "don't add features beyond the task," "prefer e
 - **Credentials**: `.env` + `VITE_*` prefix, never inlined into source. Type new vars in `src/vite-env.d.ts` so `noUncheckedIndexedAccess` doesn't infect callers with `string | undefined`. Server-only secrets (e.g. Resend API key inside the Phase 4 Edge Function) go through Supabase secrets, never `.env`.
 - **Comments**: write none unless the WHY is non-obvious (hidden constraint, subtle invariant, workaround for a specific bug, surprising behavior). Don't explain the WHAT — names do that. Don't reference task / PR / issue numbers — they rot.
 - **Subagent dispatch**: for mechanical tooling commands (`npm install`, regenerate types, run tests-then-commit), prefer inline execution over spawning a subagent — haiku-tier subagents have hit sandbox permission walls on `npm` in this repo.
-- **Wiki updates**: when a change touches anything documented in `wiki/`, update the affected page in the same commit (or note it explicitly if deliberately deferring).
+- **Wiki updates**: `wiki/` is untracked (on-disk only — never commit it). When a change touches anything documented there, update the affected page on disk as part of the same change (or note it explicitly if deliberately deferring).
 
 ---
 
