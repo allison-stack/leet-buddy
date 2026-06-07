@@ -1,4 +1,7 @@
-import type { HintRequest, ApproachEvalRequest, ApproachEvalResponse, Difficulty, Profile } from './types';
+import type {
+  HintRequest, ApproachEvalRequest, ApproachEvalResponse, Difficulty, Profile,
+  FriendsListEntry,
+} from './types';
 
 export type ContentToWorker =
   | { type: 'TIMER_START'; tabId: number; slug: string; difficulty: Difficulty }
@@ -15,7 +18,11 @@ export type ContentToWorker =
   | { type: 'AUTH_SEND_OTP'; email: string }
   | { type: 'AUTH_VERIFY_OTP'; email: string; code: string }
   | { type: 'AUTH_SIGN_OUT' }
-  | { type: 'GET_AUTH_STATE' };
+  | { type: 'GET_AUTH_STATE' }
+  | { type: 'FRIENDS_LIST' }
+  | { type: 'FRIEND_ADD'; target: string }
+  | { type: 'FRIEND_ACCEPT'; friendshipId: string }
+  | { type: 'FRIEND_REMOVE'; friendshipId: string };
 
 export type WorkerToContent =
   | { type: 'TIMER_TICK'; tabId: number; remainingSeconds: number; status: TimerStatus }
@@ -36,6 +43,13 @@ export interface PopupState {
   reviewsDue: number;
   streakDays: number;
   tokensUsedToday: number;
+}
+
+export interface FriendsListResponse {
+  ok: true;
+  accepted: FriendsListEntry[];
+  incoming: FriendsListEntry[];
+  outgoing: FriendsListEntry[];
 }
 
 export function sendToWorker<R = unknown>(msg: ContentToWorker): Promise<R> {
