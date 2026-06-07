@@ -85,3 +85,26 @@ import type { Database } from './supabase/database.types';
 
 export type Profile = Database['public']['Tables']['profiles']['Row'];
 export type ProfileInsert = Database['public']['Tables']['profiles']['Insert'];
+
+export type Friendship       = Database['public']['Tables']['friendships']['Row'];
+export type FriendshipStatus = Database['public']['Enums']['friendship_status'];
+
+// A flattened view of one friend (or pending counterparty) for popup rendering.
+// `relation` collapses "I am user_a vs user_b" plus the pending/accepted axis
+// into a single tag the UI consumes directly.
+export type FriendRelation = 'accepted' | 'pending_in' | 'pending_out';
+
+export interface FriendsListEntry {
+  friendshipId: string;
+  profile: Profile;
+  relation: FriendRelation;
+  createdAt: string;
+}
+
+// Discriminator returned by the request_friendship RPC.
+export type RequestFriendshipStatus =
+  | 'created'
+  | 'not_found'
+  | 'self'
+  | 'already_pending'
+  | 'already_accepted';
