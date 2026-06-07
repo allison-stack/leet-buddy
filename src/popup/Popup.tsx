@@ -16,10 +16,12 @@ export function Popup() {
   const [tab, setTab] = useState<Tab>('friends');
 
   useEffect(() => {
-    chrome.runtime.sendMessage({ type: 'GET_AUTH_STATE' }).then((r: { ok: boolean; user: Profile | null }) => {
-      setUser(r.user);
-      setAuthState(r.user ? 'signed-in' : 'signed-out');
-    });
+    chrome.runtime.sendMessage({ type: 'GET_AUTH_STATE' })
+      .then((r: { ok: boolean; user: Profile | null }) => {
+        setUser(r.user ?? null);
+        setAuthState(r.user ? 'signed-in' : 'signed-out');
+      })
+      .catch(() => setAuthState('signed-out'));
 
     const listener = (msg: { type: string; user?: Profile | null }) => {
       if (msg.type === 'AUTH_STATE') {

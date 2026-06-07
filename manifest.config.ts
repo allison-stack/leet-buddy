@@ -34,5 +34,6 @@ export default defineManifest({
     'https://generativelanguage.googleapis.com/*',
     'https://api.anthropic.com/*',
     'https://api.openai.com/*',
+    'https://*.supabase.co/*',
   ],
 });

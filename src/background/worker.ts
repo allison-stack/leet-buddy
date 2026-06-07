@@ -27,8 +27,10 @@ const friends = new Friends(sbForFriends);
 
 // Broadcast auth state changes to any listening popups / content scripts.
 sbForAuth.auth.onAuthStateChange(async () => {
-  const user = await auth.getCurrentUser();
-  chrome.runtime.sendMessage({ type: 'AUTH_STATE', user }).catch(() => { /* no popup open */ });
+  try {
+    const user = await auth.getCurrentUser();
+    chrome.runtime.sendMessage({ type: 'AUTH_STATE', user }).catch(() => { /* no popup open */ });
+  } catch { /* session restore can fail on network error */ }
 });
 
 chrome.runtime.onInstalled.addListener(async () => {
@@ -173,8 +175,12 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
         return;
       }
       case 'GET_AUTH_STATE': {
-        const user = await auth.getCurrentUser();
-        sendResponse({ ok: true, user });
+        try {
+          const user = await auth.getCurrentUser();
+          sendResponse({ ok: true, user });
+        } catch {
+          sendResponse({ ok: true, user: null });
+        }
         return;
       }
       case 'FRIENDS_LIST': {
@@ -219,7 +225,9 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
     if (tabId !== undefined) {
       sendResponse({ ok: true, snapshot: state.timers.snapshot(tabId, now) });
     }
-  })();
+  })().catch(() => {
+    sendResponse({ ok: false, error: 'internal error' });
+  });
   return true; // async response
 });
 
