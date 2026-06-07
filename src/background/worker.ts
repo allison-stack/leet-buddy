@@ -11,6 +11,7 @@ import { stripCodeBlocks } from '@/llm/output-filter';
 import { codeHash } from './hint-cache';
 import { getSupabase } from '@/shared/supabase/client-factory';
 import { Auth, type AuthSupabase } from './challenger/auth';
+import { Friends, type FriendsSupabase } from './challenger/friends';
 
 console.log('[leet-buddy] worker boot');
 
@@ -19,6 +20,10 @@ console.log('[leet-buddy] worker boot');
 // from the Database<...> chain), so we narrow at the boundary.
 const sbForAuth = getSupabase() as unknown as AuthSupabase;
 const auth = new Auth(sbForAuth);
+
+// Same TS2589 dodge as sbForAuth.
+const sbForFriends = getSupabase() as unknown as FriendsSupabase;
+const friends = new Friends(sbForFriends);
 
 // Broadcast auth state changes to any listening popups / content scripts.
 sbForAuth.auth.onAuthStateChange(async () => {
@@ -170,6 +175,42 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
       case 'GET_AUTH_STATE': {
         const user = await auth.getCurrentUser();
         sendResponse({ ok: true, user });
+        return;
+      }
+      case 'FRIENDS_LIST': {
+        try {
+          const list = await friends.list();
+          sendResponse({ ok: true, ...list });
+        } catch (e) {
+          sendResponse({ ok: false, error: (e as Error).message });
+        }
+        return;
+      }
+      case 'FRIEND_ADD': {
+        try {
+          const result = await friends.add(msg.target);
+          sendResponse({ ok: true, ...result });
+        } catch (e) {
+          sendResponse({ ok: false, error: (e as Error).message });
+        }
+        return;
+      }
+      case 'FRIEND_ACCEPT': {
+        try {
+          await friends.accept(msg.friendshipId);
+          sendResponse({ ok: true });
+        } catch (e) {
+          sendResponse({ ok: false, error: (e as Error).message });
+        }
+        return;
+      }
+      case 'FRIEND_REMOVE': {
+        try {
+          await friends.remove(msg.friendshipId);
+          sendResponse({ ok: true });
+        } catch (e) {
+          sendResponse({ ok: false, error: (e as Error).message });
+        }
         return;
       }
       default: break; // other message types handled in later tasks
