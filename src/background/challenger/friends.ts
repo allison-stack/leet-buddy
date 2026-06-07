@@ -32,10 +32,14 @@ export interface FriendsSupabase {
   from(table: 'friendships'): {
     select(cols: string): Thenable<{ data: FriendshipRowWithProfiles[]; error: Error | null }>;
     update(patch: { status: 'accepted' }): {
-      eq(col: 'id', val: string): Thenable<{ error: Error | null }>;
+      eq(col: 'id', val: string): {
+        select(cols: string): Thenable<{ data: { id: string }[] | null; error: Error | null }>;
+      };
     };
     delete(): {
-      eq(col: 'id', val: string): Thenable<{ error: Error | null }>;
+      eq(col: 'id', val: string): {
+        select(cols: string): Thenable<{ data: { id: string }[] | null; error: Error | null }>;
+      };
     };
   };
 }
@@ -102,23 +106,29 @@ export class Friends {
   }
 
   async accept(friendshipId: string): Promise<void> {
-    await new Promise<void>((resolve, reject) => {
+    const { data, error } = await new Promise<{ data: { id: string }[] | null; error: Error | null }>((resolve) => {
       this.sb
         .from('friendships')
         .update({ status: 'accepted' })
         .eq('id', friendshipId)
-        .then(({ error }) => (error ? reject(error) : resolve()));
+        .select('id')
+        .then(resolve);
     });
+    if (error) throw error;
+    if (!data || data.length === 0) throw new Error('Could not accept — the request may have been withdrawn.');
   }
 
   async remove(friendshipId: string): Promise<void> {
-    await new Promise<void>((resolve, reject) => {
+    const { data, error } = await new Promise<{ data: { id: string }[] | null; error: Error | null }>((resolve) => {
       this.sb
         .from('friendships')
         .delete()
         .eq('id', friendshipId)
-        .then(({ error }) => (error ? reject(error) : resolve()));
+        .select('id')
+        .then(resolve);
     });
+    if (error) throw error;
+    if (!data || data.length === 0) throw new Error('Could not remove — it may already be gone.');
   }
 
   private async requireMeId(): Promise<string> {

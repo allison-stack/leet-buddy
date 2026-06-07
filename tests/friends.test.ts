@@ -15,8 +15,10 @@ const otherProfile: Profile = {
 function makeStub(opts: {
   rows?: FriendshipRowWithProfiles[];
   rpcResult?: { status: string; friendship_id?: string };
+  affectedRows?: number;
 } = {}) {
   const rows: FriendshipRowWithProfiles[] = opts.rows ?? [];
+  const affectedRows = opts.affectedRows ?? 1;
   const rpcCalls: Array<{ fn: string; args: unknown }> = [];
   const updates: Array<{ id: string; patch: unknown }> = [];
   const deletes: Array<{ id: string }> = [];
@@ -39,18 +41,22 @@ function makeStub(opts: {
         }),
         update: (patch: unknown) => ({
           eq: (_col: string, id: string) => ({
-            then: (resolve: (r: { error: null }) => void) => {
-              updates.push({ id, patch });
-              resolve({ error: null });
-            },
+            select: () => ({
+              then: (resolve: (r: { data: { id: string }[]; error: null }) => void) => {
+                updates.push({ id, patch });
+                resolve({ data: Array.from({ length: affectedRows }, () => ({ id })), error: null });
+              },
+            }),
           }),
         }),
         delete: () => ({
           eq: (_col: string, id: string) => ({
-            then: (resolve: (r: { error: null }) => void) => {
-              deletes.push({ id });
-              resolve({ error: null });
-            },
+            select: () => ({
+              then: (resolve: (r: { data: { id: string }[]; error: null }) => void) => {
+                deletes.push({ id });
+                resolve({ data: Array.from({ length: affectedRows }, () => ({ id })), error: null });
+              },
+            }),
           }),
         }),
       };
@@ -138,6 +144,12 @@ describe('Friends.accept', () => {
     await friends.accept('f3');
     expect(updates).toEqual([{ id: 'f3', patch: { status: 'accepted' } }]);
   });
+
+  it('throws when zero rows are affected', async () => {
+    const { stub } = makeStub({ affectedRows: 0 });
+    const friends = new Friends(stub);
+    await expect(friends.accept('f3')).rejects.toThrow('Could not accept');
+  });
 });
 
 describe('Friends.remove', () => {
@@ -146,5 +158,11 @@ describe('Friends.remove', () => {
     const friends = new Friends(stub);
     await friends.remove('f1');
     expect(deletes).toEqual([{ id: 'f1' }]);
+  });
+
+  it('throws when zero rows are affected', async () => {
+    const { stub } = makeStub({ affectedRows: 0 });
+    const friends = new Friends(stub);
+    await expect(friends.remove('f1')).rejects.toThrow('Could not remove');
   });
 });
