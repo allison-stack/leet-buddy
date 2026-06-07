@@ -4,12 +4,16 @@ import type { Database } from './database.types';
 
 let cached: SupabaseClient<Database> | null = null;
 
-// Supabase's token-refresh fetch has no built-in timeout. In an MV3 service
-// worker it can hang indefinitely, holding navigator.locks and blocking every
-// subsequent getSession() call. Eight seconds is generous for auth calls.
+// Token-refresh calls (/auth/v1/token?grant_type=refresh_token) can hang
+// indefinitely in an MV3 service worker, holding navigator.locks and blocking
+// every subsequent getSession(). Cap them tightly. All other requests (OTP,
+// profile fetches, etc.) get a generous limit since they involve SMTP or DB.
 function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+  const isRefresh = url.includes('/auth/v1/token') && url.includes('grant_type=refresh_token');
+  const ms = isRefresh ? 8_000 : 30_000;
   const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), 8_000);
+  const id = setTimeout(() => controller.abort(), ms);
   return fetch(input, { ...init, signal: controller.signal }).finally(() => clearTimeout(id));
 }
 
