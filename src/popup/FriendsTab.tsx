@@ -46,17 +46,21 @@ export function FriendsTab() {
   };
 
   const onAccept = async (friendshipId: string) => {
-    setBusy(true);
-    await chrome.runtime.sendMessage({ type: 'FRIEND_ACCEPT', friendshipId });
+    setBusy(true); setError(null);
+    const res: { ok: boolean; error?: string } =
+      await chrome.runtime.sendMessage({ type: 'FRIEND_ACCEPT', friendshipId });
     setBusy(false);
+    if (!res.ok) { setError(res.error ?? 'Accept failed'); return; }
     await refresh();
   };
 
   const onRemove = async (friendshipId: string, handle: string) => {
     if (!confirm(`Remove @${handle}?`)) return;
-    setBusy(true);
-    await chrome.runtime.sendMessage({ type: 'FRIEND_REMOVE', friendshipId });
+    setBusy(true); setError(null);
+    const res: { ok: boolean; error?: string } =
+      await chrome.runtime.sendMessage({ type: 'FRIEND_REMOVE', friendshipId });
     setBusy(false);
+    if (!res.ok) { setError(res.error ?? 'Remove failed'); return; }
     await refresh();
   };
 
@@ -132,8 +136,10 @@ function AddResultLine({ result }: { result: AddResult }) {
     case 'not_found':
       return (
         <p style={{ marginTop: 6 }}>
-          No leet-buddy user for <em>{result.target}</em>.{' '}
-          <a href={mailtoInvite(result.target)}>Invite them</a>
+          No leet-buddy user for <em>{result.target}</em>.
+          {result.target.includes('@') && (
+            <> <a href={mailtoInvite(result.target)}>Invite them</a></>
+          )}
         </p>
       );
   }

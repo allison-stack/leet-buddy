@@ -11,7 +11,10 @@ beforeEach(() => {
   globalThis.chrome = { runtime: { sendMessage } };
 });
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  (globalThis as unknown as { confirm?: unknown }).confirm = undefined;
+});
 
 function fakeEntry(handle: string, friendshipId: string): FriendsListEntry {
   return {
