@@ -108,3 +108,6 @@ export type RequestFriendshipStatus =
   | 'self'
   | 'already_pending'
   | 'already_accepted';
+
+export type Challenge      = Database['public']['Tables']['challenges']['Row'];
+export type ChallengeState = Database['public']['Enums']['challenge_state'];
