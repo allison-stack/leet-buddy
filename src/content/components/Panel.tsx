@@ -12,6 +12,13 @@ import { MinimizedBar } from './MinimizedBar';
 import { useDragResize } from '../hooks/useDragResize';
 import { getPanelMinimized, setPanelMinimized, getSettings } from '@/shared/storage';
 import { playTimerPing } from '../sound';
+import type { Snapshot } from '@/background/timer-manager';
+import type { Challenge, Profile } from '@/shared/types';
+import { readSolveStats } from '../leetcode-dom';
+import { ChallengeBanner } from './challenger/ChallengeBanner';
+import { ChallengeCTA } from './challenger/ChallengeCTA';
+import { FriendPicker } from './challenger/FriendPicker';
+import { ResultScreen } from './challenger/ResultScreen';
 
 type Phase = 'timing' | 'approach' | 'hint' | 'solved';
 
@@ -28,6 +35,18 @@ export function Panel() {
   const [dismissed, setDismissed] = useState(false);
   const [minimized, setMinimized] = useState(false);
 
+  type ChallengePhase = 'none' | 'racing' | 'waiting' | 'cta' | 'picking' | 'result';
+  interface SolveData { timeMs: number; lcRuntimePct?: number; lcMemPct?: number }
+
+  const [challengePhase, setChallengePhase] = useState<ChallengePhase>('none');
+  const [activeChallenge, setActiveChallenge] = useState<Challenge | null>(null);
+  const [friendProfile, setFriendProfile] = useState<Profile | null>(null);
+  const [solveData, setSolveData] = useState<SolveData | null>(null);
+  const [streakCount, setStreakCount] = useState(0);
+  const [meId, setMeId] = useState('');
+  const activeChallengeRef = useRef<Challenge | null>(null);
+  activeChallengeRef.current = activeChallenge;
+
   const phaseRef = useRef<Phase>(phase);
   phaseRef.current = phase;
   const userToggledMinimizedRef = useRef(false);
@@ -42,6 +61,24 @@ export function Panel() {
     setDismissed(false);
     void sendToWorker({ type: 'TIMER_START', tabId: -1, slug: s, difficulty: d });
   }, []);
+
+  useEffect(() => {
+    if (!slug) return;
+    void sendToWorker<{ ok: boolean; challenge: Challenge | null; friendProfile: Profile | null; meId: string }>(
+      { type: 'GET_ACTIVE_CHALLENGE', slug },
+    ).then(res => {
+      if (!res?.ok) return;
+      if (res.meId) setMeId(res.meId);
+      if (!res.challenge) return;
+      setActiveChallenge(res.challenge);
+      setFriendProfile(res.friendProfile);
+      if (res.challenge.accepted_at !== null && res.challenge.recipient_id === res.meId) {
+        setChallengePhase('racing');
+      } else {
+        setChallengePhase('waiting');
+      }
+    });
+  }, [slug]);
 
   // Capture the editor's starter template at mount (before user edits).
   useEffect(() => {
@@ -81,10 +118,57 @@ export function Panel() {
 
   useEffect(() => {
     if (!slug) return;
-    return onAcceptedVerdict(() => {
+    const handler = (msg: { type: string; challenge?: Challenge }) => {
+      if (msg.type === 'CHALLENGE_RESULT_READY' && msg.challenge) {
+        setActiveChallenge(msg.challenge);
+        setChallengePhase('result');
+      }
+      if (msg.type === 'CHALLENGE_INBOX_UPDATED') {
+        void sendToWorker<{ ok: boolean; challenge: Challenge | null; friendProfile: Profile | null; meId: string }>(
+          { type: 'GET_ACTIVE_CHALLENGE', slug },
+        ).then(res => {
+          if (!res?.ok) return;
+          if (res.challenge) {
+            setActiveChallenge(res.challenge);
+            setFriendProfile(res.friendProfile);
+          }
+        });
+      }
+    };
+    chrome.runtime.onMessage.addListener(handler);
+    return () => chrome.runtime.onMessage.removeListener(handler);
+  }, [slug]);
+
+  useEffect(() => {
+    if (!slug) return;
+    return onAcceptedVerdict(async () => {
       if (phaseRef.current === 'solved') return;
       setPhase('solved');
       void sendToWorker({ type: 'MARK_SOLVED', slug, title, difficulty, hintTierUsed });
+      const timerRes = await sendToWorker<{ ok: boolean; snapshot?: Snapshot }>({ type: 'GET_TIMER_STATE', tabId: -1 });
+      const timeMs = timerRes?.snapshot?.elapsedMs ?? 0;
+      const lcStats = readSolveStats();
+      const data: SolveData = { timeMs, lcRuntimePct: lcStats?.lcRuntimePct, lcMemPct: lcStats?.lcMemPct };
+      setSolveData(data);
+
+      const challenge = activeChallengeRef.current;
+      if (challenge && challenge.accepted_at !== null) {
+        const res = await sendToWorker<{ ok: boolean; challenge?: Challenge }>({
+          type: 'CHALLENGE_SUBMIT',
+          challengeId: challenge.id,
+          timeMs,
+          lcRuntimePct: lcStats?.lcRuntimePct,
+          lcMemPct: lcStats?.lcMemPct,
+        });
+        if (res?.ok && res.challenge) {
+          setActiveChallenge(res.challenge);
+          const streakRes = await sendToWorker<{ ok: boolean; streak?: number }>({ type: 'GET_STREAK_COUNT' });
+          setStreakCount(streakRes?.streak ?? 0);
+          setChallengePhase('result');
+        }
+      } else {
+        setChallengePhase('cta');
+      }
     });
   }, [slug, title, difficulty, hintTierUsed]);
 
@@ -169,6 +253,18 @@ export function Panel() {
       </div>
       <div className="lb-body">
         <div style={{ opacity: 0.7, fontSize: 11 }}>{title} · {difficulty}</div>
+        {(challengePhase === 'racing' || challengePhase === 'waiting') && activeChallenge && (
+          <ChallengeBanner
+            challenge={activeChallenge}
+            meId={meId}
+            friendHandle={friendProfile?.handle ?? '?'}
+            onCancel={async () => {
+              await sendToWorker({ type: 'CHALLENGE_CANCEL', challengeId: activeChallenge.id });
+              setActiveChallenge(null);
+              setChallengePhase('none');
+            }}
+          />
+        )}
         <div className="lb-row">
           <button className="lb-btn" onClick={() => void sendTimerControl({ type: 'TIMER_PAUSE', tabId: -1 })}>Pause</button>
           <button className="lb-btn" onClick={() => void sendTimerControl({ type: 'TIMER_RESUME', tabId: -1 })}>Resume</button>
@@ -206,8 +302,36 @@ export function Panel() {
           />
         )}
 
-        {phase === 'solved' && (
+        {phase === 'solved' && challengePhase !== 'picking' && challengePhase !== 'result' && (
           <SolveRating slug={slug} title={title} difficulty={difficulty} hintTierUsed={hintTierUsed} onRated={() => setDismissed(true)} />
+        )}
+        {phase === 'solved' && challengePhase === 'cta' && solveData && (
+          <ChallengeCTA timeMs={solveData.timeMs} onChallenge={() => setChallengePhase('picking')} />
+        )}
+        {challengePhase === 'picking' && solveData && (
+          <FriendPicker
+            solveData={solveData}
+            problemSlug={slug}
+            problemTitle={title}
+            onSent={() => {
+              void sendToWorker<{ ok: boolean; challenge: Challenge | null; friendProfile: Profile | null; meId: string }>(
+                { type: 'GET_ACTIVE_CHALLENGE', slug },
+              ).then(res => {
+                if (res?.ok && res.challenge) setActiveChallenge(res.challenge);
+              });
+              setChallengePhase('waiting');
+            }}
+            onCancel={() => setChallengePhase('cta')}
+          />
+        )}
+        {challengePhase === 'result' && activeChallenge && (
+          <ResultScreen
+            challenge={activeChallenge}
+            meId={meId}
+            friendHandle={friendProfile?.handle ?? '?'}
+            streakCount={streakCount}
+            onDismiss={() => { setChallengePhase('none'); setActiveChallenge(null); }}
+          />
         )}
       </div>
       <div className="lb-resize-grip" {...resizeGripProps}>
