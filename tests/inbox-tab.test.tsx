@@ -47,5 +47,6 @@ describe('InboxTab', () => {
     await waitFor(() =>
       expect(sendMessage).toHaveBeenCalledWith({ type: 'CHALLENGE_ACCEPT', challengeId: 'c1' }),
     );
+    expect(chrome.tabs.update).toHaveBeenCalledWith({ url: 'https://leetcode.com/problems/two-sum/' });
   });
 });
