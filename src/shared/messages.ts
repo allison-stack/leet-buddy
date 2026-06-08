@@ -1,6 +1,6 @@
 import type {
   HintRequest, ApproachEvalRequest, ApproachEvalResponse, Difficulty, Profile,
-  FriendsListEntry,
+  FriendsListEntry, Challenge,
 } from './types';
 
 export type ContentToWorker =
@@ -22,7 +22,14 @@ export type ContentToWorker =
   | { type: 'FRIENDS_LIST' }
   | { type: 'FRIEND_ADD'; target: string }
   | { type: 'FRIEND_ACCEPT'; friendshipId: string }
-  | { type: 'FRIEND_REMOVE'; friendshipId: string };
+  | { type: 'FRIEND_REMOVE'; friendshipId: string }
+  | { type: 'GET_ACTIVE_CHALLENGE'; slug: string }
+  | { type: 'CHALLENGE_CREATE'; friendId: string; problemSlug: string; problemTitle: string; timeMs: number; lcRuntimePct?: number; lcMemPct?: number }
+  | { type: 'CHALLENGE_ACCEPT'; challengeId: string }
+  | { type: 'CHALLENGE_SUBMIT'; challengeId: string; timeMs: number; lcRuntimePct?: number; lcMemPct?: number }
+  | { type: 'CHALLENGE_CANCEL'; challengeId: string }
+  | { type: 'CHALLENGE_INBOX_GET' }
+  | { type: 'GET_STREAK_COUNT' };
 
 export type WorkerToContent =
   | { type: 'TIMER_TICK'; tabId: number; remainingSeconds: number; status: TimerStatus }
@@ -30,7 +37,9 @@ export type WorkerToContent =
   | { type: 'APPROACH_EVAL_RESULT'; payload: ApproachEvalResponse }
   | { type: 'HINT_RESULT'; tier: 1 | 2 | 3 | 4; text: string }
   | { type: 'ERROR'; message: string }
-  | { type: 'AUTH_STATE'; user: Profile | null };
+  | { type: 'AUTH_STATE'; user: Profile | null }
+  | { type: 'CHALLENGE_INBOX_UPDATED'; pending: Challenge[]; recent: Challenge[] }
+  | { type: 'CHALLENGE_RESULT_READY'; challenge: Challenge };
 
 export type TimerStatus = 'idle' | 'running' | 'paused' | 'fired' | 'solved';
 
@@ -50,6 +59,19 @@ export interface FriendsListResponse {
   accepted: FriendsListEntry[];
   incoming: FriendsListEntry[];
   outgoing: FriendsListEntry[];
+}
+
+export interface ActiveChallengeResponse {
+  ok: true;
+  challenge: Challenge | null;
+  friendProfile: Profile | null;
+  meId: string;
+}
+
+export interface ChallengeInboxResponse {
+  ok: true;
+  pending: Challenge[];
+  recent: Challenge[];
 }
 
 export function sendToWorker<R = unknown>(msg: ContentToWorker): Promise<R> {
