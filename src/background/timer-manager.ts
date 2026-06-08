@@ -18,6 +18,7 @@ export interface Snapshot {
   status: TimerStatus;
   remainingSeconds: number;
   durationSeconds: number;
+  elapsedMs: number;
 }
 
 export class TimerManager {
@@ -94,6 +95,7 @@ export class TimerManager {
       status,
       remainingSeconds,
       durationSeconds: s.durationSeconds,
+      elapsedMs,
     };
   }
 
