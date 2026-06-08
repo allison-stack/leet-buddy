@@ -12,6 +12,11 @@ import { codeHash } from './hint-cache';
 import { getSupabase } from '@/shared/supabase/client-factory';
 import { Auth, type AuthSupabase } from './challenger/auth';
 import { Friends, type FriendsSupabase } from './challenger/friends';
+import { ChallengeManager, type ChallengeSupabase } from './challenger/challenge-manager';
+import { RaceTimer } from './challenger/race-timer';
+import { PollAlarm } from './challenger/poll-alarm';
+import type { ActiveChallengeResponse, ChallengeInboxResponse } from '@/shared/messages';
+import type { Profile } from '@/shared/types';
 
 console.log('[leet-buddy] worker boot');
 
@@ -25,6 +30,17 @@ const auth = new Auth(sbForAuth);
 const sbForFriends = getSupabase() as unknown as FriendsSupabase;
 const friends = new Friends(sbForFriends);
 
+const sbForChallenges = getSupabase() as unknown as ChallengeSupabase;
+const challengeManager = new ChallengeManager(sbForChallenges);
+const raceTimer = new RaceTimer();
+
+const pollAlarm = new PollAlarm(challengeManager, async (msg) => {
+  const tabs = await chrome.tabs.query({ url: 'https://leetcode.com/problems/*' });
+  for (const tab of tabs) {
+    if (tab.id != null) chrome.tabs.sendMessage(tab.id, msg).catch(() => {});
+  }
+});
+
 // Broadcast auth state changes to any listening popups / content scripts.
 sbForAuth.auth.onAuthStateChange(async () => {
   try {
@@ -35,6 +51,7 @@ sbForAuth.auth.onAuthStateChange(async () => {
 
 chrome.runtime.onInstalled.addListener(async () => {
   chrome.alarms.create('timer-tick', { periodInMinutes: TIMER_TICK_MS / 60_000 });
+  chrome.alarms.create('pollChallenges', { periodInMinutes: 1 });
   await scheduleDailyAlarm();
 });
 
@@ -219,6 +236,93 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
         }
         return;
       }
+      case 'GET_ACTIVE_CHALLENGE': {
+        try {
+          const challenge = await challengeManager.getForSlug(msg.slug);
+          if (!challenge) {
+            sendResponse({ ok: true, challenge: null, friendProfile: null, meId: '' } satisfies ActiveChallengeResponse);
+            return;
+          }
+          const { data: sessionData } = await sbForAuth.auth.getSession();
+          const meId = sessionData?.session?.user.id ?? '';
+          const friendId = challenge.sender_id === meId ? challenge.recipient_id : challenge.sender_id;
+          const friendProfile = await fetchProfile(friendId);
+          sendResponse({ ok: true, challenge, friendProfile, meId } satisfies ActiveChallengeResponse);
+        } catch (e) {
+          sendResponse({ ok: false, error: (e as Error).message });
+        }
+        return;
+      }
+      case 'CHALLENGE_CREATE': {
+        try {
+          const id = await challengeManager.create({
+            friendId: msg.friendId,
+            problemSlug: msg.problemSlug,
+            problemTitle: msg.problemTitle,
+            timeMs: msg.timeMs,
+            lcRuntimePct: msg.lcRuntimePct,
+            lcMemPct: msg.lcMemPct,
+          });
+          sendResponse({ ok: true, challengeId: id });
+        } catch (e) {
+          sendResponse({ ok: false, error: (e as Error).message });
+        }
+        return;
+      }
+      case 'CHALLENGE_ACCEPT': {
+        try {
+          await challengeManager.accept(msg.challengeId);
+          if (tabId !== undefined) {
+            await raceTimer.start(tabId, msg.challengeId, Date.now());
+          }
+          sendResponse({ ok: true });
+        } catch (e) {
+          sendResponse({ ok: false, error: (e as Error).message });
+        }
+        return;
+      }
+      case 'CHALLENGE_SUBMIT': {
+        try {
+          const challenge = await challengeManager.submitResult(
+            msg.challengeId, msg.timeMs, msg.lcRuntimePct, msg.lcMemPct,
+          );
+          if (tabId !== undefined) await raceTimer.stop(tabId);
+          sendResponse({ ok: true, challenge });
+        } catch (e) {
+          sendResponse({ ok: false, error: (e as Error).message });
+        }
+        return;
+      }
+      case 'CHALLENGE_CANCEL': {
+        try {
+          await challengeManager.cancel(msg.challengeId);
+          if (tabId !== undefined) await raceTimer.stop(tabId);
+          sendResponse({ ok: true });
+        } catch (e) {
+          sendResponse({ ok: false, error: (e as Error).message });
+        }
+        return;
+      }
+      case 'CHALLENGE_INBOX_GET': {
+        try {
+          const inbox = await challengeManager.listInbox();
+          sendResponse({ ok: true, ...inbox } satisfies ChallengeInboxResponse);
+        } catch (e) {
+          sendResponse({ ok: false, error: (e as Error).message });
+        }
+        return;
+      }
+      case 'GET_STREAK_COUNT': {
+        try {
+          const { data: sessData } = await sbForAuth.auth.getSession();
+          const uid = sessData?.session?.user.id ?? '';
+          const streak = await challengeManager.getStreakCount(uid);
+          sendResponse({ ok: true, streak });
+        } catch {
+          sendResponse({ ok: true, streak: 0 });
+        }
+        return;
+      }
       default: break; // other message types handled in later tasks
     }
     await persistTimers(state);
@@ -234,6 +338,10 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === 'daily-reminder') {
     await fireDailyReminder();
+    return;
+  }
+  if (alarm.name === 'pollChallenges') {
+    void pollAlarm.tick();
     return;
   }
   if (alarm.name !== 'timer-tick') return;
@@ -262,6 +370,19 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
 chrome.storage.onChanged.addListener(async (changes, area) => {
   if (area === 'sync' && 'settings' in changes) await scheduleDailyAlarm();
 });
+
+async function fetchProfile(userId: string): Promise<Profile | null> {
+  try {
+    const result = await (getSupabase() as unknown as {
+      from(t: string): {
+        select(c: string): { eq(col: string, val: string): Promise<{ data: unknown[] | null }> };
+      };
+    }).from('profiles').select('*').eq('id', userId);
+    return (result.data?.[0] as Profile) ?? null;
+  } catch {
+    return null;
+  }
+}
 
 function durationFor(difficulty: 'easy' | 'medium' | 'hard'): number {
   return { easy: 180, medium: 300, hard: 600 }[difficulty];
