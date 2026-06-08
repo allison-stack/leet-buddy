@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SELECTORS } from '@/content/selectors';
-import { onAcceptedVerdict } from '@/content/leetcode-dom';
+import { onAcceptedVerdict, readSolveStats } from '@/content/leetcode-dom';
 
 function wait(ms = 30) {
   return new Promise<void>(r => setTimeout(r, ms));
@@ -70,5 +70,37 @@ describe('onAcceptedVerdict', () => {
 
     await wait();
     expect(cb).not.toHaveBeenCalled();
+  });
+});
+
+describe('readSolveStats', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+    SELECTORS.runtimeStats = '[data-e2e-locator="submission-result-stats"]';
+  });
+
+  it('extracts runtime and memory percentages', () => {
+    document.body.innerHTML = `
+      <div data-e2e-locator="submission-result-stats">
+        <span>Runtime: 64 ms, Faster than 82.31% of JavaScript submissions.</span>
+        <span>Memory: 44.5 MB, Less than 93.45% of JavaScript submissions.</span>
+      </div>`;
+    const stats = readSolveStats();
+    expect(stats?.lcRuntimePct).toBe(82);
+    expect(stats?.lcMemPct).toBe(93);
+  });
+
+  it('returns null when stats container absent', () => {
+    expect(readSolveStats()).toBeNull();
+  });
+
+  it('returns partial result when only runtime found', () => {
+    document.body.innerHTML = `
+      <div data-e2e-locator="submission-result-stats">
+        <span>Runtime: 64 ms, Faster than 55.00% of JavaScript submissions.</span>
+      </div>`;
+    const stats = readSolveStats();
+    expect(stats?.lcRuntimePct).toBe(55);
+    expect(stats?.lcMemPct).toBeUndefined();
   });
 });

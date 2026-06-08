@@ -43,3 +43,21 @@ export function onAcceptedVerdict(callback: () => void): () => void {
   observer.observe(document.body, { childList: true, subtree: true });
   return () => observer.disconnect();
 }
+
+export interface SolveStats {
+  lcRuntimePct?: number;
+  lcMemPct?: number;
+}
+
+export function readSolveStats(): SolveStats | null {
+  const container = document.querySelector<HTMLElement>(SELECTORS.runtimeStats);
+  if (!container) return null;
+  const text = container.innerText || container.textContent || '';
+  const runtimeMatch = text.match(/faster than\s+([\d.]+)%/i);
+  const memMatch = text.match(/less than\s+([\d.]+)%/i);
+  const result: SolveStats = {};
+  if (runtimeMatch) result.lcRuntimePct = Math.round(parseFloat(runtimeMatch[1]!));
+  if (memMatch) result.lcMemPct = Math.round(parseFloat(memMatch[1]!));
+  if (!runtimeMatch && !memMatch) return null;
+  return result;
+}

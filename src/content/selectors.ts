@@ -9,6 +9,7 @@ const HARDCODED = {
   difficultyPill: 'div[class*="text-difficulty-"]',
   submissionResult: '[data-e2e-locator="submission-result"]',
   monacoHost: '.monaco-editor',
+  runtimeStats: '[data-e2e-locator="submission-result-stats"]',
 };
 
 export const SELECTORS: typeof HARDCODED = { ...HARDCODED };
