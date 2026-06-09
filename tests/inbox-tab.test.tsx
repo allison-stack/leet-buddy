@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { InboxTab } from '@/popup/InboxTab';
+import { InboxTab } from '@/content/components/challenger/InboxTab';
 import type { Challenge } from '@/shared/types';
 
 const sendMessage = vi.fn();
@@ -28,20 +28,20 @@ function makeChallenge(id: string, slug: string): Challenge {
 describe('InboxTab', () => {
   it('renders pending challenges', async () => {
     sendMessage.mockResolvedValueOnce({ ok: true, pending: [makeChallenge('c1', 'two-sum')], recent: [] });
-    render(<InboxTab />);
+    render(<InboxTab meId="me" />);
     await waitFor(() => expect(screen.getByText(/two-sum/i)).toBeTruthy());
   });
 
   it('shows empty state when no challenges', async () => {
     sendMessage.mockResolvedValueOnce({ ok: true, pending: [], recent: [] });
-    render(<InboxTab />);
+    render(<InboxTab meId="me" />);
     await waitFor(() => expect(screen.getByText(/no challenges/i)).toBeTruthy());
   });
 
   it('sends CHALLENGE_ACCEPT and opens LC URL on Accept', async () => {
     sendMessage.mockResolvedValueOnce({ ok: true, pending: [makeChallenge('c1', 'two-sum')], recent: [] });
     sendMessage.mockResolvedValueOnce({ ok: true }); // CHALLENGE_ACCEPT
-    render(<InboxTab />);
+    render(<InboxTab meId="me" />);
     await waitFor(() => screen.getByRole('button', { name: /accept/i }));
     fireEvent.click(screen.getByRole('button', { name: /accept/i }));
     await waitFor(() =>
