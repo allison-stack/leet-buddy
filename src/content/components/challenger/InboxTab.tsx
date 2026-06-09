@@ -94,7 +94,7 @@ export function InboxTab({ meId }: Props) {
           <div className="lb-scroll" style={{ maxHeight: 120, overflowY: 'auto', paddingRight: 4 }}>
             {recent.map(c => {
               const isExpired = c.state === 'expired_forfeit' || c.state === 'expired_no_contest';
-              const iWon = c.state === 'completed' && c.winner_id === meId;
+              const iWon = c.state === 'completed' && c.winner_id !== null && c.winner_id === meId;
               const iLost = c.state === 'completed' && c.winner_id !== null && c.winner_id !== meId;
               const myTime = c.recipient_time_ms !== null ? formatMs(c.recipient_time_ms) : '';
               return (
