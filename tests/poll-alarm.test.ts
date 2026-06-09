@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PollAlarm } from '@/background/challenger/poll-alarm';
 import type { ChallengeManagerLike } from '@/background/challenger/challenge-manager';
 import type { Challenge } from '@/shared/types';
@@ -13,6 +13,10 @@ function makeChallenge(id: string): Challenge {
   };
 }
 
+function makeNotifier() {
+  return { tick: vi.fn().mockResolvedValue(undefined) };
+}
+
 describe('PollAlarm.tick', () => {
   it('calls applyExpiries and pushes CHALLENGE_INBOX_UPDATED', async () => {
     const inbox = { pending: [makeChallenge('c1')], recent: [] };
@@ -21,8 +25,8 @@ describe('PollAlarm.tick', () => {
       listInbox: vi.fn().mockResolvedValue(inbox),
     };
     const messages: unknown[] = [];
-    const pa = new PollAlarm(cm, async (msg) => { messages.push(msg); });
-    await pa.tick();
+    const pa = new PollAlarm(cm, async (msg) => { messages.push(msg); }, makeNotifier());
+    await pa.tick('');
     expect(cm.applyExpiries).toHaveBeenCalledOnce();
     expect(messages).toEqual([{ type: 'CHALLENGE_INBOX_UPDATED', ...inbox }]);
   });
@@ -33,8 +37,20 @@ describe('PollAlarm.tick', () => {
       listInbox: vi.fn().mockResolvedValue({ pending: [], recent: [] }),
     };
     const messages: unknown[] = [];
-    const pa = new PollAlarm(cm, async (msg) => { messages.push(msg); });
-    await pa.tick();
+    const pa = new PollAlarm(cm, async (msg) => { messages.push(msg); }, makeNotifier());
+    await pa.tick('');
     expect(messages).toHaveLength(1);
+  });
+
+  it('calls notifier.tick with pending, recent, and meId', async () => {
+    const inbox = { pending: [makeChallenge('c1')], recent: [] };
+    const cm: ChallengeManagerLike = {
+      applyExpiries: vi.fn().mockResolvedValue(undefined),
+      listInbox: vi.fn().mockResolvedValue(inbox),
+    };
+    const notifier = makeNotifier();
+    const pa = new PollAlarm(cm, async () => {}, notifier);
+    await pa.tick('user-123');
+    expect(notifier.tick).toHaveBeenCalledWith(inbox.pending, inbox.recent, 'user-123');
   });
 });
