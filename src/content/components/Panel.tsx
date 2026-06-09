@@ -20,6 +20,7 @@ import { FriendPicker } from './challenger/FriendPicker';
 import { ResultScreen } from './challenger/ResultScreen';
 import { InboxTab } from './challenger/InboxTab';
 import { FriendsTab } from './challenger/FriendsTab';
+import { Timer } from './Timer';
 
 type PanelTab = 'solve' | 'inbox' | 'friends';
 
@@ -77,7 +78,13 @@ export function Panel() {
     const d = readDifficulty();
     setDifficulty(d);
     setDismissed(false);
-    void sendToWorker({ type: 'TIMER_START', tabId: -1, slug: s, difficulty: d });
+    void sendToWorker<{ ok: boolean; snapshot?: Snapshot }>({ type: 'TIMER_START', tabId: -1, slug: s, difficulty: d })
+      .then(res => {
+        if (res?.snapshot) {
+          setRemaining(res.snapshot.remainingSeconds);
+          setStatus(res.snapshot.status);
+        }
+      });
   }, []);
 
   useEffect(() => {
@@ -289,12 +296,11 @@ export function Panel() {
           <div>
             <div style={{ textAlign: 'center', padding: '10px 0 4px' }}>
               <div
-                className="lb-timer"
                 style={{ cursor: 'pointer' }}
                 onClick={pauseToggle}
                 title={status === 'paused' ? 'Click to resume' : 'Click to pause'}
               >
-                {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, '0')}
+                <Timer remainingFromWorker={remaining} status={status} />
               </div>
               <div style={{ fontSize: 10, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>
                 {status === 'paused' ? 'paused' : status === 'idle' ? 'ready' : 'running'}
