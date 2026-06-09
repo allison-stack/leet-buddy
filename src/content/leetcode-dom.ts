@@ -8,7 +8,10 @@ export function slugFromUrl(href = location.href): string | null {
 
 export function readTitle(): string {
   const el = document.querySelector<HTMLElement>(SELECTORS.problemTitle);
-  return el?.textContent?.trim() ?? slugFromUrl() ?? '';
+  const fromEl = el?.textContent?.trim();
+  if (fromEl) return fromEl;
+  const fromDocTitle = document.title.split(' - ')[0]?.trim();
+  return fromDocTitle || slugFromUrl() || '';
 }
 
 export function readDifficulty(): Difficulty {

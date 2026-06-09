@@ -5,7 +5,7 @@ import { getLocal, setLocal } from '@/shared/storage';
  * Can be overridden at runtime via a remote-fetched config (see refreshRemoteSelectors).
  */
 const HARDCODED = {
-  problemTitle: 'div[class*="text-title-large"] a, a[href^="/problems/"]',
+  problemTitle: 'div[class*="text-title-large"] a',
   difficultyPill: 'div[class*="text-difficulty-"]',
   submissionResult: '[data-e2e-locator="submission-result"]',
   monacoHost: '.monaco-editor',
