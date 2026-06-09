@@ -216,6 +216,10 @@ export function Panel() {
         remaining={remaining}
         status={status}
         phase={phase}
+        pendingCount={0}
+        raceOpponent={null}
+        acceptedAt={null}
+        onHint={() => {}}
         onPauseToggle={pauseToggle}
         onMarkSolved={markSolved}
         onExpand={() => toggleMinimized(false)}
