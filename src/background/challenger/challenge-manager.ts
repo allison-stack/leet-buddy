@@ -120,7 +120,7 @@ export class ChallengeManager implements ChallengeManagerLike {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const [pending, recent] = await Promise.all([
       this.selectRows('*', (q) =>
-        q.or(`sender_id.eq.${meId},recipient_id.eq.${meId}`).eq('state', 'pending'),
+        q.eq('recipient_id', meId).eq('state', 'pending'),
       ),
       this.selectRows('*', (q) =>
         q.or(`sender_id.eq.${meId},recipient_id.eq.${meId}`)

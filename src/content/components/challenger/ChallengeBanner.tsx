@@ -14,6 +14,12 @@ function formatMs(ms: number): string {
   return `${m}:${String(s % 60).padStart(2, '0')}`;
 }
 
+function formatTimeLeft(ms: number): string {
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  return h > 0 ? `${h}h` : `${m}m`;
+}
+
 export function ChallengeBanner({ challenge, meId, friendHandle, onCancel }: Props) {
   const isRacing = challenge.accepted_at !== null && challenge.recipient_id === meId;
   const isWaiting = challenge.sender_id === meId;
@@ -42,7 +48,7 @@ export function ChallengeBanner({ challenge, meId, friendHandle, onCancel }: Pro
       {isRacing ? (
         <span>⚔️ Racing @{friendHandle} · <code style={{ fontFamily: 'monospace' }}>{formatMs(elapsed)}</code></span>
       ) : (
-        <span>⏳ @{friendHandle} — {formatMs(timeLeft)} left to accept</span>
+        <span>⏳ @{friendHandle} — {formatTimeLeft(timeLeft)} left to accept</span>
       )}
       <button
         style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: 11 }}
