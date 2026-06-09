@@ -199,18 +199,36 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
       }
       case 'AUTH_VERIFY_OTP': {
         const result = await auth.verifyOtp(msg.email, msg.code);
+        if (result.ok && result.user) {
+          await chrome.storage.local.set({ cached_profile: result.user });
+        }
         sendResponse(result);
         return;
       }
       case 'AUTH_SIGN_OUT': {
         await auth.signOut();
+        await chrome.storage.local.remove('cached_profile');
         sendResponse({ ok: true });
         return;
       }
       case 'GET_AUTH_STATE': {
         try {
-          const user = await auth.getCurrentUser();
-          sendResponse({ ok: true, user });
+          const { data } = await sbForAuth.auth.getSession();
+          if (!data.session) {
+            sendResponse({ ok: true, user: null });
+          } else {
+            const cached = await chrome.storage.local.get('cached_profile');
+            const profile = cached['cached_profile'] as Profile | undefined;
+            // Fallback for users who signed in before profile caching was added.
+            const user: Profile = profile ?? {
+              id: data.session.user.id,
+              handle: (data.session.user.email ?? '').split('@')[0] ?? 'user',
+              display_name: (data.session.user.email ?? '').split('@')[0] ?? 'user',
+              avatar_color: '#ffa116',
+              created_at: '',
+            };
+            sendResponse({ ok: true, user });
+          }
         } catch {
           sendResponse({ ok: true, user: null });
         }
