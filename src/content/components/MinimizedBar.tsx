@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { TimerStatus } from '@/shared/messages';
+import type { Phase } from '@/shared/types';
 import { Timer } from './Timer';
-
-type Phase = 'timing' | 'approach' | 'hint' | 'solved';
 
 interface Props {
   remaining: number;
@@ -29,9 +28,12 @@ export function MinimizedBar({
   const isSolved = phase === 'solved';
   const isPaused = status === 'paused';
 
-  const [elapsed, setElapsed] = useState(0);
+  const [elapsed, setElapsed] = useState(() =>
+    acceptedAt ? Date.now() - new Date(acceptedAt).getTime() : 0
+  );
   useEffect(() => {
     if (!acceptedAt) return;
+    setElapsed(Date.now() - new Date(acceptedAt).getTime());
     const id = setInterval(() => {
       setElapsed(Date.now() - new Date(acceptedAt).getTime());
     }, 1000);

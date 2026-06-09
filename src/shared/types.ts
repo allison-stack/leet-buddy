@@ -111,3 +111,5 @@ export type RequestFriendshipStatus =
 
 export type Challenge      = Database['public']['Tables']['challenges']['Row'];
 export type ChallengeState = Database['public']['Enums']['challenge_state'];
+
+export type Phase = 'timing' | 'approach' | 'hint' | 'solved';
