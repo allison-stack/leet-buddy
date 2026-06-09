@@ -3,8 +3,7 @@ import { slugFromUrl, readTitle, readDifficulty, readProblemStatement, onAccepte
 import { readMonacoContents, isSubstantive } from '../editor';
 import { sendToWorker } from '@/shared/messages';
 import type { ContentToWorker, TimerStatus } from '@/shared/messages';
-import type { Difficulty, ApproachEvalResponse } from '@/shared/types';
-import { Timer } from './Timer';
+import type { Difficulty, ApproachEvalResponse, Phase } from '@/shared/types';
 import { ApproachPrompt } from './ApproachPrompt';
 import { HintLadder } from './HintLadder';
 import { SolveRating } from './SolveRating';
@@ -19,8 +18,10 @@ import { ChallengeBanner } from './challenger/ChallengeBanner';
 import { ChallengeCTA } from './challenger/ChallengeCTA';
 import { FriendPicker } from './challenger/FriendPicker';
 import { ResultScreen } from './challenger/ResultScreen';
+import { InboxTab } from './challenger/InboxTab';
+import { FriendsTab } from './challenger/FriendsTab';
 
-type Phase = 'timing' | 'approach' | 'hint' | 'solved';
+type PanelTab = 'solve' | 'inbox' | 'friends';
 
 export function Panel() {
   const [slug, setSlug] = useState<string | null>(null);
@@ -34,6 +35,9 @@ export function Panel() {
   const [hintTierUsed, setHintTierUsed] = useState<0 | 1 | 2 | 3 | 4>(0);
   const [dismissed, setDismissed] = useState(false);
   const [minimized, setMinimized] = useState(false);
+  const [activeTab, setActiveTab] = useState<PanelTab>('solve');
+  const [pendingCount, setPendingCount] = useState(0);
+  const [isSignedIn, setIsSignedIn] = useState(false);
 
   type ChallengePhase = 'none' | 'racing' | 'waiting' | 'cta' | 'picking' | 'result';
   interface SolveData { timeMs: number; lcRuntimePct?: number; lcMemPct?: number }
@@ -50,6 +54,20 @@ export function Panel() {
   const phaseRef = useRef<Phase>(phase);
   phaseRef.current = phase;
   const userToggledMinimizedRef = useRef(false);
+
+  useEffect(() => {
+    void chrome.runtime.sendMessage({ type: 'GET_AUTH_STATE' })
+      .then((r: { ok: boolean; user: { id: string } | null }) => {
+        setIsSignedIn(!!r?.user);
+      })
+      .catch(() => setIsSignedIn(false));
+
+    const authHandler = (msg: { type: string; user?: { id: string } | null }) => {
+      if (msg.type === 'AUTH_STATE') setIsSignedIn(!!msg.user);
+    };
+    chrome.runtime.onMessage.addListener(authHandler);
+    return () => chrome.runtime.onMessage.removeListener(authHandler);
+  }, []);
 
   useEffect(() => {
     const s = slugFromUrl();
@@ -78,9 +96,14 @@ export function Panel() {
         setChallengePhase('waiting');
       }
     });
+
+    void chrome.runtime.sendMessage({ type: 'CHALLENGE_INBOX_GET' })
+      .then((r: { ok: boolean; pending?: Challenge[] }) => {
+        if (r?.ok) setPendingCount(r.pending?.length ?? 0);
+      })
+      .catch(() => {/* signed out — badge stays 0 */});
   }, [slug]);
 
-  // Capture the editor's starter template at mount (before user edits).
   useEffect(() => {
     if (!slug) return;
     let attempts = 0;
@@ -98,7 +121,7 @@ export function Panel() {
   }, [slug]);
 
   useEffect(() => {
-    const handler = (msg: { type: string; remainingSeconds?: number; status?: TimerStatus; askForApproach?: boolean }) => {
+    const handler = (msg: { type: string; remainingSeconds?: number; status?: TimerStatus }) => {
       if (msg.type === 'TIMER_TICK') {
         if (typeof msg.remainingSeconds === 'number') setRemaining(msg.remainingSeconds);
         if (msg.status) setStatus(msg.status);
@@ -118,12 +141,13 @@ export function Panel() {
 
   useEffect(() => {
     if (!slug) return;
-    const handler = (msg: { type: string; challenge?: Challenge }) => {
+    const handler = (msg: { type: string; challenge?: Challenge; pending?: Challenge[] }) => {
       if (msg.type === 'CHALLENGE_RESULT_READY' && msg.challenge) {
         setActiveChallenge(msg.challenge);
         setChallengePhase('result');
       }
       if (msg.type === 'CHALLENGE_INBOX_UPDATED') {
+        setPendingCount(msg.pending?.length ?? 0);
         void sendToWorker<{ ok: boolean; challenge: Challenge | null; friendProfile: Profile | null; meId: string }>(
           { type: 'GET_ACTIVE_CHALLENGE', slug },
         ).then(res => {
@@ -216,13 +240,16 @@ export function Panel() {
         remaining={remaining}
         status={status}
         phase={phase}
-        pendingCount={0}
-        raceOpponent={null}
-        acceptedAt={null}
-        onHint={() => {}}
+        pendingCount={pendingCount}
+        raceOpponent={challengePhase === 'racing' ? (friendProfile?.handle ?? null) : null}
+        acceptedAt={challengePhase === 'racing' ? (activeChallenge?.accepted_at ?? null) : null}
+        onHint={() => { if (phase !== 'solved') setPhase('hint'); }}
         onPauseToggle={pauseToggle}
         onMarkSolved={markSolved}
-        onExpand={() => toggleMinimized(false)}
+        onExpand={() => {
+          toggleMinimized(false);
+          if (pendingCount > 0) setActiveTab('inbox');
+        }}
       />
     );
   }
@@ -235,15 +262,16 @@ export function Panel() {
     }
   }
 
+  const diffColor = difficulty === 'easy' ? '#4ade80' : difficulty === 'medium' ? '#fbbf24' : '#f87171';
+
   return (
     <div className="lb-root" style={rootStyle}>
       <div className="lb-header" {...dragHandleProps}>
-        <span>
-          <span style={{ opacity: 0.3, marginRight: 6, fontSize: 12 }} aria-hidden="true">⠿</span>
-          Leet Buddy
-        </span>
-        <span className="lb-header__right">
-          <Timer remainingFromWorker={remaining} status={status} />
+        <span style={{ color: '#ffa116', fontWeight: 700, fontSize: 13 }}>leet-buddy</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 11, color: '#6b7280' }}>
+            {title}&nbsp;·&nbsp;<span style={{ color: diffColor }}>{difficulty}</span>
+          </span>
           <button
             className="lb-header__minimize"
             onClick={e => { e.stopPropagation(); toggleMinimized(true); }}
@@ -251,93 +279,138 @@ export function Panel() {
             title="Minimize"
             aria-label="Minimize panel"
           >
-            ▾
+            −
           </button>
         </span>
       </div>
+
       <div className="lb-body">
-        <div style={{ opacity: 0.7, fontSize: 11 }}>{title} · {difficulty}</div>
-        {(challengePhase === 'racing' || challengePhase === 'waiting') && activeChallenge && (
-          <ChallengeBanner
-            challenge={activeChallenge}
-            meId={meId}
-            friendHandle={friendProfile?.handle ?? '?'}
-            onCancel={async () => {
-              await sendToWorker({ type: 'CHALLENGE_CANCEL', challengeId: activeChallenge.id });
-              setActiveChallenge(null);
-              setChallengePhase('none');
-            }}
-          />
-        )}
-        <div className="lb-row">
-          <button className="lb-btn" onClick={() => void sendTimerControl({ type: 'TIMER_PAUSE', tabId: -1 })}>Pause</button>
-          <button className="lb-btn" onClick={() => void sendTimerControl({ type: 'TIMER_RESUME', tabId: -1 })}>Resume</button>
-          <button className="lb-btn" onClick={() => void sendTimerControl({ type: 'TIMER_RESET', tabId: -1 })}>Reset</button>
-          <button className="lb-btn" onClick={() => {
-            if (!slug) return;
-            setPhase('solved');
-            void sendToWorker({ type: 'MARK_SOLVED', slug, title, difficulty, hintTierUsed });
-          }}>Mark solved</button>
-        </div>
-        <div style={{ marginTop: 8, fontSize: 11, opacity: 0.7 }}>status: {status}</div>
+        {activeTab === 'solve' && (
+          <div>
+            <div style={{ textAlign: 'center', padding: '10px 0 4px' }}>
+              <div
+                className="lb-timer"
+                style={{ cursor: 'pointer' }}
+                onClick={pauseToggle}
+                title={status === 'paused' ? 'Click to resume' : 'Click to pause'}
+              >
+                {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, '0')}
+              </div>
+              <div style={{ fontSize: 10, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>
+                {status === 'paused' ? 'paused' : status === 'idle' ? 'ready' : 'running'}
+              </div>
+            </div>
 
-        {phase === 'approach' && (
-          <ApproachPrompt
-            slug={slug}
-            problemStatement={readProblemStatement()}
-            difficulty={difficulty}
-            onResult={r => { setApproachResult(r); setPhase('hint'); }}
-            onSkip={() => setPhase('hint')}
-          />
-        )}
+            {(challengePhase === 'racing' || challengePhase === 'waiting') && activeChallenge && (
+              <ChallengeBanner
+                challenge={activeChallenge}
+                meId={meId}
+                friendHandle={friendProfile?.handle ?? '?'}
+                onCancel={async () => {
+                  await sendToWorker({ type: 'CHALLENGE_CANCEL', challengeId: activeChallenge.id });
+                  setActiveChallenge(null);
+                  setChallengePhase('none');
+                }}
+              />
+            )}
 
-        {approachResult && (
-          <div className="lb-hint">
-            <strong>{approachResult.verdict.toUpperCase()}:</strong> {approachResult.message}
+            {phase !== 'solved' && (
+              <div className="lb-row" style={{ marginTop: 8 }}>
+                <button className="lb-btn" style={{ flex: 1 }} onClick={() => setPhase('hint')}>
+                  💡 Hint
+                </button>
+                <button className="lb-btn" style={{ flex: 1 }} onClick={() => setPhase('approach')}>
+                  🧠 Approach
+                </button>
+              </div>
+            )}
+            {phase !== 'solved' && (
+              <button className="lb-btn primary" style={{ width: '100%', marginTop: 8 }} onClick={markSolved}>
+                Mark solved ✓
+              </button>
+            )}
+
+            {phase === 'approach' && (
+              <ApproachPrompt
+                slug={slug}
+                problemStatement={readProblemStatement()}
+                difficulty={difficulty}
+                onResult={r => { setApproachResult(r); setPhase('hint'); }}
+                onSkip={() => setPhase('hint')}
+              />
+            )}
+            {approachResult && (
+              <div className="lb-hint">
+                <strong>{approachResult.verdict.toUpperCase()}:</strong> {approachResult.message}
+              </div>
+            )}
+            {phase === 'hint' && (
+              <HintLadder
+                slug={slug}
+                problemStatement={readProblemStatement()}
+                difficulty={difficulty}
+                userCode={readMonacoContents()}
+              />
+            )}
+            {phase === 'solved' && challengePhase !== 'picking' && challengePhase !== 'result' && (
+              <SolveRating slug={slug} title={title} difficulty={difficulty} hintTierUsed={hintTierUsed} onRated={() => setDismissed(true)} />
+            )}
+            {phase === 'solved' && challengePhase === 'cta' && solveData && (
+              <ChallengeCTA timeMs={solveData.timeMs} onChallenge={() => setChallengePhase('picking')} />
+            )}
+            {challengePhase === 'picking' && solveData && (
+              <FriendPicker
+                solveData={solveData}
+                problemSlug={slug}
+                problemTitle={title}
+                onSent={() => {
+                  void sendToWorker<{ ok: boolean; challenge: Challenge | null; friendProfile: Profile | null; meId: string }>(
+                    { type: 'GET_ACTIVE_CHALLENGE', slug },
+                  ).then(res => {
+                    if (res?.ok && res.challenge) setActiveChallenge(res.challenge);
+                  });
+                  setChallengePhase('waiting');
+                }}
+                onCancel={() => setChallengePhase('cta')}
+              />
+            )}
+            {challengePhase === 'result' && activeChallenge && (
+              <ResultScreen
+                challenge={activeChallenge}
+                meId={meId}
+                friendHandle={friendProfile?.handle ?? '?'}
+                streakCount={streakCount}
+                onDismiss={() => { setChallengePhase('none'); setActiveChallenge(null); }}
+              />
+            )}
           </div>
         )}
 
-        {phase === 'hint' && (
-          <HintLadder
-            slug={slug}
-            problemStatement={readProblemStatement()}
-            difficulty={difficulty}
-            userCode={readMonacoContents()}
-          />
+        {activeTab === 'inbox' && (
+          isSignedIn
+            ? <InboxTab meId={meId} />
+            : <SignedOutNudge />
         )}
 
-        {phase === 'solved' && challengePhase !== 'picking' && challengePhase !== 'result' && (
-          <SolveRating slug={slug} title={title} difficulty={difficulty} hintTierUsed={hintTierUsed} onRated={() => setDismissed(true)} />
-        )}
-        {phase === 'solved' && challengePhase === 'cta' && solveData && (
-          <ChallengeCTA timeMs={solveData.timeMs} onChallenge={() => setChallengePhase('picking')} />
-        )}
-        {challengePhase === 'picking' && solveData && (
-          <FriendPicker
-            solveData={solveData}
-            problemSlug={slug}
-            problemTitle={title}
-            onSent={() => {
-              void sendToWorker<{ ok: boolean; challenge: Challenge | null; friendProfile: Profile | null; meId: string }>(
-                { type: 'GET_ACTIVE_CHALLENGE', slug },
-              ).then(res => {
-                if (res?.ok && res.challenge) setActiveChallenge(res.challenge);
-              });
-              setChallengePhase('waiting');
-            }}
-            onCancel={() => setChallengePhase('cta')}
-          />
-        )}
-        {challengePhase === 'result' && activeChallenge && (
-          <ResultScreen
-            challenge={activeChallenge}
-            meId={meId}
-            friendHandle={friendProfile?.handle ?? '?'}
-            streakCount={streakCount}
-            onDismiss={() => { setChallengePhase('none'); setActiveChallenge(null); }}
-          />
+        {activeTab === 'friends' && (
+          isSignedIn
+            ? <FriendsTab />
+            : <SignedOutNudge />
         )}
       </div>
+
+      <nav className="lb-bottom-nav" aria-label="Panel tabs">
+        <button className={activeTab === 'solve' ? 'active' : ''} onClick={() => setActiveTab('solve')}>
+          Solve
+        </button>
+        <button className={activeTab === 'inbox' ? 'active' : ''} onClick={() => setActiveTab('inbox')}>
+          Inbox{pendingCount > 0 ? ` (${pendingCount})` : ''}
+        </button>
+        <button className={activeTab === 'friends' ? 'active' : ''} onClick={() => setActiveTab('friends')}>
+          Friends
+        </button>
+      </nav>
+
       <div className="lb-resize-grip" {...resizeGripProps}>
         <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
           <line x1="2" y1="10" x2="10" y2="2" stroke="#555" strokeWidth="1.5" strokeLinecap="round"/>
@@ -345,6 +418,14 @@ export function Panel() {
           <line x1="8" y1="10" x2="10" y2="8" stroke="#555" strokeWidth="1.5" strokeLinecap="round"/>
         </svg>
       </div>
+    </div>
+  );
+}
+
+function SignedOutNudge() {
+  return (
+    <div style={{ padding: '24px 16px', textAlign: 'center', fontSize: 12, color: '#6b7280', lineHeight: 1.6 }}>
+      Sign in via the extension icon to challenge friends.
     </div>
   );
 }
