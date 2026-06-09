@@ -15,6 +15,7 @@ import { Friends, type FriendsSupabase } from './challenger/friends';
 import { ChallengeManager, type ChallengeSupabase } from './challenger/challenge-manager';
 import { RaceTimer } from './challenger/race-timer';
 import { PollAlarm } from './challenger/poll-alarm';
+import { Notifier } from './challenger/notifier';
 import type { ActiveChallengeResponse, ChallengeInboxResponse } from '@/shared/messages';
 import type { Profile } from '@/shared/types';
 
@@ -34,12 +35,14 @@ const sbForChallenges = getSupabase() as unknown as ChallengeSupabase;
 const challengeManager = new ChallengeManager(sbForChallenges);
 const raceTimer = new RaceTimer();
 
+const notifier = new Notifier(chrome.storage.local);
+
 const pollAlarm = new PollAlarm(challengeManager, async (msg) => {
   const tabs = await chrome.tabs.query({ url: 'https://leetcode.com/problems/*' });
   for (const tab of tabs) {
     if (tab.id != null) chrome.tabs.sendMessage(tab.id, msg).catch(() => {});
   }
-});
+}, notifier);
 
 // Broadcast auth state changes to any listening popups / content scripts.
 sbForAuth.auth.onAuthStateChange(async () => {
@@ -47,6 +50,18 @@ sbForAuth.auth.onAuthStateChange(async () => {
     const user = await auth.getCurrentUser();
     chrome.runtime.sendMessage({ type: 'AUTH_STATE', user }).catch(() => { /* no popup open */ });
   } catch { /* session restore can fail on network error */ }
+});
+
+chrome.notifications.onClicked.addListener(async (notifId) => {
+  const slug = await notifier.getNavSlug(notifId);
+  if (slug) void chrome.tabs.create({ url: `https://leetcode.com/problems/${slug}/` });
+  void chrome.notifications.clear(notifId);
+});
+
+chrome.notifications.onButtonClicked.addListener(async (notifId) => {
+  const slug = await notifier.getNavSlug(notifId);
+  if (slug) void chrome.tabs.create({ url: `https://leetcode.com/problems/${slug}/` });
+  void chrome.notifications.clear(notifId);
 });
 
 chrome.runtime.onInstalled.addListener(async () => {
@@ -341,7 +356,9 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     return;
   }
   if (alarm.name === 'pollChallenges') {
-    void pollAlarm.tick();
+    const { data } = await sbForAuth.auth.getSession();
+    const meId = data?.session?.user.id ?? '';
+    void pollAlarm.tick(meId);
     return;
   }
   if (alarm.name !== 'timer-tick') return;
