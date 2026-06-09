@@ -60,52 +60,77 @@ export function SignedOutPrompt({ onSignedIn }: Props) {
 
   return (
     <div style={wrap}>
-      <h3 style={{ margin: 0 }}>Sign in</h3>
-      <p style={{ marginTop: 8, opacity: 0.75, fontSize: 12 }}>
-        We email you a 6-digit code. No password.
-      </p>
+      <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+        <span style={{ fontWeight: 700, color: '#ffa116', fontSize: 14 }}>leet-buddy</span>
+      </div>
+      <div style={{ padding: 16 }}>
+        <p style={{ margin: '0 0 12px', fontWeight: 600, fontSize: 13, color: '#f0f0f0' }}>Sign in</p>
+        <p style={{ margin: '0 0 12px', fontSize: 12, color: '#6b7280' }}>
+          We email you a 6-digit code. No password.
+        </p>
 
-      {step === 'email' ? (
-        <>
-          <input
-            placeholder="email@example.com"
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            style={input}
-          />
-          <button onClick={sendCode} disabled={busy || !email.includes('@')} style={btn}>
-            {busy ? 'Sending…' : 'Send code'}
-          </button>
-        </>
-      ) : (
-        <>
-          <p style={{ fontSize: 12, opacity: 0.75, marginBottom: 8 }}>
-            Check {email} for a 6-digit code.
-          </p>
-          <input
-            placeholder="6-digit code"
-            inputMode="numeric"
-            value={code}
-            onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            style={input}
-          />
-          <button onClick={verify} disabled={busy || code.length !== 6} style={btn}>
-            {busy ? 'Verifying…' : 'Verify'}
-          </button>
-          <button onClick={resetToEmailStep} style={linkBtn}>
-            Use a different email
-          </button>
-        </>
-      )}
+        {step === 'email' ? (
+          <>
+            <input
+              placeholder="email@example.com"
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && email.includes('@') && !busy) void sendCode(); }}
+              style={input}
+            />
+            <button onClick={sendCode} disabled={busy || !email.includes('@')} style={btn(busy || !email.includes('@'))}>
+              {busy ? 'Sending…' : 'Send code'}
+            </button>
+          </>
+        ) : (
+          <>
+            <p style={{ margin: '0 0 8px', fontSize: 12, color: '#6b7280' }}>
+              Check <span style={{ color: '#9ca3af' }}>{email}</span> for a 6-digit code.
+            </p>
+            <input
+              placeholder="6-digit code"
+              inputMode="numeric"
+              value={code}
+              onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              onKeyDown={e => { if (e.key === 'Enter' && code.length === 6 && !busy) void verify(); }}
+              style={input}
+            />
+            <button onClick={verify} disabled={busy || code.length !== 6} style={btn(busy || code.length !== 6)}>
+              {busy ? 'Verifying…' : 'Verify'}
+            </button>
+            <button onClick={resetToEmailStep} style={linkBtn}>
+              Use a different email
+            </button>
+          </>
+        )}
 
-      {error && <p style={errorStyle}>{error}</p>}
+        {error && <p style={errorStyle}>{error}</p>}
+      </div>
     </div>
   );
 }
 
-const wrap: React.CSSProperties = { padding: 16, width: 320, fontFamily: 'system-ui', fontSize: 13 };
-const input: React.CSSProperties = { width: '100%', boxSizing: 'border-box', padding: 8, marginTop: 8, fontSize: 13 };
-const btn: React.CSSProperties = { width: '100%', padding: 8, marginTop: 8, fontSize: 13, cursor: 'pointer' };
-const linkBtn: React.CSSProperties = { width: '100%', padding: 8, marginTop: 4, fontSize: 12, background: 'transparent', border: 0, color: '#2563eb', cursor: 'pointer' };
-const errorStyle: React.CSSProperties = { color: '#dc2626', fontSize: 12, marginTop: 8 };
+const wrap: React.CSSProperties = {
+  width: 300, fontFamily: 'system-ui', fontSize: 13,
+  background: '#262626', color: '#f0f0f0',
+};
+const input: React.CSSProperties = {
+  width: '100%', boxSizing: 'border-box', padding: '7px 10px', marginBottom: 8,
+  fontSize: 12, fontFamily: 'inherit',
+  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+  borderRadius: 6, color: '#e0e0e0', outline: 'none',
+};
+const btn = (disabled: boolean): React.CSSProperties => ({
+  width: '100%', padding: '8px 0', marginBottom: 4,
+  fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: disabled ? 'default' : 'pointer',
+  background: disabled ? 'rgba(255,161,22,0.4)' : '#ffa116',
+  border: 'none', borderRadius: 6, color: '#1a1a1a',
+  opacity: disabled ? 0.6 : 1,
+});
+const linkBtn: React.CSSProperties = {
+  width: '100%', padding: '6px 0', marginTop: 2,
+  fontSize: 12, background: 'transparent', border: 0,
+  color: '#6b7280', cursor: 'pointer', fontFamily: 'inherit',
+};
+const errorStyle: React.CSSProperties = { color: '#f87171', fontSize: 12, marginTop: 8 };
