@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { FriendsTab } from '@/popup/FriendsTab';
+import { FriendsTab } from '@/content/components/challenger/FriendsTab';
 import type { FriendsListEntry } from '@/shared/types';
 
 const sendMessage = vi.fn();
