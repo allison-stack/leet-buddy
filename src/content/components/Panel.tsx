@@ -9,7 +9,7 @@ import { HintLadder } from './HintLadder';
 import { SolveRating } from './SolveRating';
 import { MinimizedBar } from './MinimizedBar';
 import { useDragResize } from '../hooks/useDragResize';
-import { getPanelMinimized, setPanelMinimized, getSettings } from '@/shared/storage';
+import { getPanelMinimized, setPanelMinimized, getSettings, getProblems } from '@/shared/storage';
 import { playTimerPing } from '../sound';
 import type { Snapshot } from '@/background/timer-manager';
 import type { Challenge, Profile } from '@/shared/types';
@@ -47,10 +47,17 @@ export function Panel() {
   const [activeChallenge, setActiveChallenge] = useState<Challenge | null>(null);
   const [friendProfile, setFriendProfile] = useState<Profile | null>(null);
   const [solveData, setSolveData] = useState<SolveData | null>(null);
+  const [storedSolveData, setStoredSolveData] = useState<SolveData | null>(null);
   const [streakCount, setStreakCount] = useState(0);
   const [meId, setMeId] = useState('');
   const activeChallengeRef = useRef<Challenge | null>(null);
   activeChallengeRef.current = activeChallenge;
+
+  function formatSolveMs(ms: number): string {
+    const s = Math.floor(ms / 1000);
+    const m = Math.floor(s / 60);
+    return `${m}:${String(s % 60).padStart(2, '0')}`;
+  }
 
   const phaseRef = useRef<Phase>(phase);
   phaseRef.current = phase;
@@ -85,6 +92,12 @@ export function Panel() {
           setStatus(res.snapshot.status);
         }
       });
+    void getProblems().then(problems => {
+      const rec = problems[s];
+      if (rec?.lastSolveMs) {
+        setStoredSolveData({ timeMs: rec.lastSolveMs, lcRuntimePct: rec.lastSolveLcRuntimePct, lcMemPct: rec.lastSolveLcMemPct });
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -148,13 +161,21 @@ export function Panel() {
 
   useEffect(() => {
     if (!slug) return;
-    const handler = (msg: { type: string; challenge?: Challenge; pending?: Challenge[] }) => {
+    const handler = (msg: { type: string; challenge?: Challenge; pending?: Challenge[]; recent?: Challenge[] }) => {
       if (msg.type === 'CHALLENGE_RESULT_READY' && msg.challenge) {
         setActiveChallenge(msg.challenge);
         setChallengePhase('result');
       }
       if (msg.type === 'CHALLENGE_INBOX_UPDATED') {
         setPendingCount(msg.pending?.length ?? 0);
+        const justCompleted = msg.recent?.find(c => c.id === activeChallengeRef.current?.id);
+        if (justCompleted) {
+          setActiveChallenge(justCompleted);
+          void sendToWorker<{ ok: boolean; streak?: number }>({ type: 'GET_STREAK_COUNT' })
+            .then(r => setStreakCount(r?.streak ?? 0));
+          setChallengePhase('result');
+          return;
+        }
         void sendToWorker<{ ok: boolean; challenge: Challenge | null; friendProfile: Profile | null; meId: string }>(
           { type: 'GET_ACTIVE_CHALLENGE', slug },
         ).then(res => {
@@ -175,12 +196,12 @@ export function Panel() {
     return onAcceptedVerdict(async () => {
       if (phaseRef.current === 'solved') return;
       setPhase('solved');
-      void sendToWorker({ type: 'MARK_SOLVED', slug, title, difficulty, hintTierUsed });
       const timerRes = await sendToWorker<{ ok: boolean; snapshot?: Snapshot }>({ type: 'GET_TIMER_STATE', tabId: -1 });
       const timeMs = timerRes?.snapshot?.elapsedMs ?? 0;
       const lcStats = readSolveStats();
       const data: SolveData = { timeMs, lcRuntimePct: lcStats?.lcRuntimePct, lcMemPct: lcStats?.lcMemPct };
       setSolveData(data);
+      void sendToWorker({ type: 'MARK_SOLVED', slug, title, difficulty, hintTierUsed, timeMs, lcRuntimePct: lcStats?.lcRuntimePct, lcMemPct: lcStats?.lcMemPct });
 
       const challenge = activeChallengeRef.current;
       if (challenge && challenge.accepted_at !== null) {
@@ -320,6 +341,26 @@ export function Panel() {
               />
             )}
 
+            {isSignedIn && storedSolveData && phase !== 'solved' && challengePhase === 'none' && (
+              <div className="lb-section">
+                <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 6 }}>
+                  Previous solve: {formatSolveMs(storedSolveData.timeMs)}
+                </div>
+                <div className="lb-row">
+                  <button
+                    className="lb-btn primary"
+                    style={{ flex: 1 }}
+                    onClick={() => { setSolveData(storedSolveData); setChallengePhase('picking'); }}
+                  >
+                    ⚔️ Challenge
+                  </button>
+                  <button className="lb-btn" style={{ flex: 1 }} onClick={() => setStoredSolveData(null)}>
+                    Redo
+                  </button>
+                </div>
+              </div>
+            )}
+
             {phase !== 'solved' && (
               <div className="lb-row" style={{ marginTop: 8 }}>
                 <button className="lb-btn" style={{ flex: 1 }} onClick={() => setPhase('hint')}>
@@ -374,6 +415,7 @@ export function Panel() {
                     { type: 'GET_ACTIVE_CHALLENGE', slug },
                   ).then(res => {
                     if (res?.ok && res.challenge) setActiveChallenge(res.challenge);
+                    if (res?.ok && res.friendProfile) setFriendProfile(res.friendProfile);
                   });
                   setChallengePhase('waiting');
                 }}

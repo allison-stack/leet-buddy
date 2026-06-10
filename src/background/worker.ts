@@ -126,6 +126,11 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
         } as ProblemRecord;
         rec.attempts += 1;
         rec.hintTierUsedMax = Math.max(rec.hintTierUsedMax, msg.hintTierUsed) as ProblemRecord['hintTierUsedMax'];
+        if (msg.timeMs !== undefined) {
+          rec.lastSolveMs = msg.timeMs;
+          rec.lastSolveLcRuntimePct = msg.lcRuntimePct;
+          rec.lastSolveLcMemPct = msg.lcMemPct;
+        }
         state.timers.markSolved(tabId, now);
         await upsertProblem(rec);
         await persistTimers(state);

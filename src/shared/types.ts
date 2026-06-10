@@ -44,6 +44,9 @@ export interface ProblemRecord {
   sm2: Sm2State;
   hintTierUsedMax: 0 | 1 | 2 | 3 | 4;
   attempts: number;
+  lastSolveMs?: number;
+  lastSolveLcRuntimePct?: number;
+  lastSolveLcMemPct?: number;
 }
 
 export interface DailyLogEntry {

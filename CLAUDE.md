@@ -162,7 +162,8 @@ Several settings are in the Supabase dashboard, not in code or migrations. If yo
 - **Auth → Providers → Email**: Email provider ON, "Confirm email" OFF, "Enable Email OTP" ON.
 - **Auth → Sign In / Up → Email OTP Length**: `6`. The popup UI hardcodes a 6-digit input.
 - **Auth → Email Templates → Magic Link**: customized to display `{{ .Token }}` (the code), not `{{ .ConfirmationURL }}` (the link).
-- **Project Settings → Authentication → SMTP**: custom SMTP via Resend (`smtp.resend.com:465`, username `resend`, password = Resend API key). Sender `onboarding@resend.dev` for solo testing; replace with a verified domain before adding real users.
+- **Auth → Email Templates → Confirm signup**: same customization — must also use `{{ .Token }}`. Supabase uses this template for first-time sign-ups, Magic Link for returning users.
+- **Project Settings → Authentication → SMTP**: Gmail SMTP (`smtp.gmail.com:587`, username `allisonzhao03@gmail.com`, password = Gmail App Password). Requires 2FA on the Gmail account. `onboarding@resend.dev` / Resend only delivers to the Resend account owner's email — unusable for multi-user.
 - **Project Settings → Auth → Rate Limits → Email per hour**: bumped above the default.
 - **Project Settings → API**: Data API enabled, automatic-expose-new-tables enabled, automatic-RLS enabled.
 

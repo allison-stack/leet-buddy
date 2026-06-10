@@ -11,7 +11,7 @@ export type ContentToWorker =
   | { type: 'GET_TIMER_STATE'; tabId: number }
   | { type: 'REQUEST_APPROACH_EVAL'; payload: ApproachEvalRequest }
   | { type: 'REQUEST_HINT'; payload: HintRequest }
-  | { type: 'MARK_SOLVED'; slug: string; title: string; difficulty: Difficulty; hintTierUsed: 0 | 1 | 2 | 3 | 4 }
+  | { type: 'MARK_SOLVED'; slug: string; title: string; difficulty: Difficulty; hintTierUsed: 0 | 1 | 2 | 3 | 4; timeMs?: number; lcRuntimePct?: number; lcMemPct?: number }
   | { type: 'RATE_SOLVE'; slug: string; quality: 1 | 3 | 4 | 5 }
   | { type: 'SKIP_PROBLEM'; slug: string }
   | { type: 'GET_POPUP_STATE' }

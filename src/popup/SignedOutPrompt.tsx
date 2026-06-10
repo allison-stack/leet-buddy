@@ -33,12 +33,19 @@ export function SignedOutPrompt({ onSignedIn }: Props) {
 
   const sendCode = async () => {
     setBusy(true); setError(null);
+    // Persist before the network call so that if the popup is closed while the
+    // OTP is in-flight (e.g. user switches tabs to find their email), the code
+    // step is still restored on reopen.
+    await chrome.storage.local.set({ [SIGN_IN_STATE_KEY]: { step: 'code', email } });
     const res: { ok: boolean; error?: string } = await chrome.runtime.sendMessage({
       type: 'AUTH_SEND_OTP', email,
     });
     setBusy(false);
-    if (!res.ok) { setError(res.error ?? 'Failed to send code'); return; }
-    await chrome.storage.local.set({ [SIGN_IN_STATE_KEY]: { step: 'code', email } });
+    if (!res.ok) {
+      await chrome.storage.local.remove(SIGN_IN_STATE_KEY);
+      setError(res.error ?? 'Failed to send code');
+      return;
+    }
     setStep('code');
   };
 
