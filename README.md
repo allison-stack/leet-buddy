@@ -30,6 +30,20 @@
    Open `chrome://extensions`, enable **Developer mode** (top right), click **Load unpacked**, and select the `dist/` folder.
 
 <!-- screenshot: chrome://extensions page with leet-buddy loaded -->
+![Leet Buddy extension](assets/screenshots/leet-buddy-extension.png)
+
+
+5. **Pin the extension** (optional but recommended)
+   Click the puzzle piece icon in the toolbar, find Leet Buddy, and click the pin icon to keep it visible.
+
+6. **Login to extension**
+   Click the extension icon, then enter your email. You will receieve a 6 digit code in your inbox. This enables friend challenges and syncs your stats.
+
+7. **Configure settings**
+   Click the gear icon in the popup or right-click the extension icon and choose **Options** to set your AI provider, API key, daily problem source, and hint threshold.
+
+![Leet Buddy settings page](assets/screenshots/leet-buddy-settings.png)
+
 
 ---
 
@@ -46,8 +60,10 @@ You're 40 minutes into a LeetCode problem. You've been staring at a blank editor
 A timer starts when you open a problem. After a configurable threshold, hints unlock one at a time — just enough to get unstuck without spoiling the solution.
 
 <!-- screenshot: panel on a problem page with timer running -->
+![Leet Buddy timer](assets/screenshots/leet-buddy-timer.png)
 
 <!-- screenshot: hints expanded showing progressive reveal -->
+![Leet Buddy hints](assets/screenshots/leet-buddy-hint.png)
 
 ---
 
@@ -56,6 +72,7 @@ A timer starts when you open a problem. After a configurable threshold, hints un
 Before you type a single line of code, Leet Buddy intercepts and asks you to describe your approach. Forces you to think before you implement.
 
 <!-- screenshot: approach-first prompt dialog -->
+![Leet Buddy approach](assets/screenshots/leet-buddy-approach.png)
 
 ---
 
