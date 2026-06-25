@@ -1,10 +1,10 @@
-import { getState, persistTimers, persistCache, buildProviderConfigs, chat, recordTokens, tokensToday } from './state';
+import { getState, persistTimers, persistCache, persistLimiter, buildProviderConfigs, chat, recordTokens, tokensToday } from './state';
 import type { ContentToWorker, WorkerToContent } from '@/shared/messages';
 import type { ProblemRecord } from '@/shared/types';
 import { TIMER_TICK_MS } from '@/shared/constants';
-import { scheduleDailyAlarm, fireDailyReminder } from './alarms';
-import { getProblems, getDailyLog, upsertProblem } from '@/shared/storage';
-import { dueReviews, isoToday } from './scheduler';
+import { scheduleDailyAlarm, fireDailyReminder, listForSource } from './alarms';
+import { getSettings, getProblems, getDailyLog, setDailyLog, upsertProblem } from '@/shared/storage';
+import { dueReviews, pickDaily, isoToday } from './scheduler';
 import { initialSm2State, updateSm2 } from '@/shared/sm2';
 import { approachEvalPrompt, hintPrompt } from '@/llm/prompts';
 import { stripCodeBlocks } from '@/llm/output-filter';
@@ -82,7 +82,17 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
         const log = await getDailyLog();
         const due = dueReviews(problems, now);
         const today = isoToday(now);
-        const entry = log[today];
+        let entry = log[today];
+        if (!entry) {
+          const settings = await getSettings();
+          const list = await listForSource(settings.dailySource);
+          const slug = pickDaily({ today, problems, log, list, now });
+          if (slug) {
+            entry = { slug, source: settings.dailySource, completed: false };
+            log[today] = entry;
+            await setDailyLog(log);
+          }
+        }
         const streak = computeStreak(log, now);
         sendResponse({
           ok: true,

@@ -26,7 +26,7 @@ export function nextOccurrence(hh: number, mm: number, now: number): number {
   return d.getTime();
 }
 
-async function listForSource(source: DailySource): Promise<string[]> {
+export async function listForSource(source: DailySource): Promise<string[]> {
   switch (source) {
     case 'blind-75': return BLIND_75;
     case 'neetcode-150': return NEETCODE_150;
