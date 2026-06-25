@@ -111,6 +111,7 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
       case 'TIMER_START':
         if (tabId === undefined) { sendResponse({ ok: false, error: 'no tabId' }); return; }
         state.timers.start(tabId, msg.slug, msg.difficulty, durationFor(msg.difficulty), now);
+        await persistTimers(state);
         sendResponse({ ok: true, snapshot: state.timers.snapshot(tabId, now) });
         return;
       case 'TIMER_PAUSE':
