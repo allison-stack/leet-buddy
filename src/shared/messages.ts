@@ -46,10 +46,17 @@ export type TimerStatus = 'idle' | 'running' | 'paused' | 'fired' | 'solved';
 export type WorkerToPopup =
   | { type: 'POPUP_STATE'; payload: PopupState };
 
+export interface ReviewItem {
+  slug: string;
+  title: string;
+  difficulty: Difficulty;
+}
+
 export interface PopupState {
   todaysProblem: { slug: string; title: string; difficulty: Difficulty } | null;
   todaysProblemCompleted: boolean;
   reviewsDue: number;
+  reviewItems: ReviewItem[];
   streakDays: number;
   tokensUsedToday: number;
 }

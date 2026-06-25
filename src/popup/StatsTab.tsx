@@ -38,6 +38,31 @@ export function StatsTab({ state }: Props) {
 
       <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
         <StatRow label="Reviews due" value={String(state.reviewsDue)} />
+        {state.reviewItems.length > 0 && (
+          <div style={{ padding: '6px 0 2px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            {state.reviewItems.map(item => (
+              <a
+                key={item.slug}
+                href={`https://leetcode.com/problems/${item.slug}/`}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: 'block', padding: '3px 0', fontSize: 12,
+                  color: '#e0e0e0', textDecoration: 'none',
+                }}
+              >
+                {item.title}{' '}
+                <span style={{
+                  fontSize: 10,
+                  color: item.difficulty === 'easy' ? '#00b8a3'
+                    : item.difficulty === 'medium' ? '#ffa116' : '#ef4743',
+                }}>
+                  {item.difficulty}
+                </span>
+              </a>
+            ))}
+          </div>
+        )}
         <StatRow label="Tokens today" value={state.tokensUsedToday.toLocaleString()} />
       </div>
 

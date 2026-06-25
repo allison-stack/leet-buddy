@@ -91,6 +91,7 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
                                      difficulty: problems[entry.slug]?.difficulty ?? 'medium' } : null,
             todaysProblemCompleted: !!entry?.completed,
             reviewsDue: due.length,
+            reviewItems: due.map(p => ({ slug: p.slug, title: p.title, difficulty: p.difficulty })),
             streakDays: streak,
             tokensUsedToday: await tokensToday(now),
           },
