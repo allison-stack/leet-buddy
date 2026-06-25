@@ -19,7 +19,6 @@ import { Notifier } from './challenger/notifier';
 import type { ActiveChallengeResponse, ChallengeInboxResponse } from '@/shared/messages';
 import type { Profile } from '@/shared/types';
 
-console.log('[leet-buddy] worker boot');
 
 // Cast: AuthSupabase is a structurally-compatible subset of the real
 // SupabaseClient. Direct assignment trips TS2589 (deep generic instantiation
