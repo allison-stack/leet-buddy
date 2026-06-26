@@ -168,7 +168,7 @@ export function Panel() {
     if (hintsUnlocked && !prevHintsUnlockedRef.current) {
       setFlashHints(true);
       const code = readMonacoContents();
-      if (!isSubstantive(code, starterRef.current, 30)) setPhase('approach');
+      setPhase(isSubstantive(code, starterRef.current, 30) ? 'hint' : 'approach');
       void (async () => {
         const settings = await getSettings();
         if (settings.timerSoundEnabled) await playTimerPing();
