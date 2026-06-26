@@ -4,9 +4,9 @@ import type { TimerStatus } from '@/shared/messages';
 interface InternalState {
   slug: string;
   difficulty: Difficulty;
-  durationSeconds: number;
-  startedAt: number;       // wall clock ms
-  pausedAt?: number;       // if paused
+  thresholdSeconds: number;
+  startedAt: number;
+  pausedAt?: number;
   accumulatedPausedMs: number;
   forcedStatus?: 'solved';
   firedSent?: boolean;
@@ -16,17 +16,17 @@ export interface Snapshot {
   slug: string;
   difficulty: Difficulty;
   status: TimerStatus;
-  remainingSeconds: number;
-  durationSeconds: number;
+  elapsedSeconds: number;
+  thresholdSeconds: number;
   elapsedMs: number;
 }
 
 export class TimerManager {
-  private states = new Map<number /* tabId */, InternalState>();
+  private states = new Map<number, InternalState>();
 
-  start(tabId: number, slug: string, difficulty: Difficulty, durationSeconds: number, now: number): void {
+  start(tabId: number, slug: string, difficulty: Difficulty, thresholdSeconds: number, now: number): void {
     this.states.set(tabId, {
-      slug, difficulty, durationSeconds,
+      slug, difficulty, thresholdSeconds,
       startedAt: now,
       accumulatedPausedMs: 0,
     });
@@ -55,7 +55,6 @@ export class TimerManager {
     s.firedSent = undefined;
   }
 
-  /** Returns true once per fired transition; subsequent calls return false until reset/start. */
   consumeFiredEvent(tabId: number): boolean {
     const s = this.states.get(tabId);
     if (!s || s.firedSent) return false;
@@ -66,7 +65,6 @@ export class TimerManager {
   markSolved(tabId: number, now: number): void {
     const s = this.states.get(tabId);
     if (!s) return;
-    // freeze paused state at "now"
     if (s.pausedAt === undefined) s.pausedAt = now;
     s.forcedStatus = 'solved';
   }
@@ -81,20 +79,20 @@ export class TimerManager {
 
     const effectivePausedMs = s.accumulatedPausedMs + (s.pausedAt !== undefined ? now - s.pausedAt : 0);
     const elapsedMs = now - s.startedAt - effectivePausedMs;
-    const remainingSeconds = Math.max(0, Math.ceil((s.durationSeconds * 1000 - elapsedMs) / 1000));
+    const elapsedSeconds = Math.floor(elapsedMs / 1000);
 
     let status: TimerStatus;
     if (s.forcedStatus === 'solved') status = 'solved';
     else if (s.pausedAt !== undefined) status = 'paused';
-    else if (remainingSeconds === 0) status = 'fired';
+    else if (elapsedSeconds >= s.thresholdSeconds) status = 'fired';
     else status = 'running';
 
     return {
       slug: s.slug,
       difficulty: s.difficulty,
       status,
-      remainingSeconds,
-      durationSeconds: s.durationSeconds,
+      elapsedSeconds,
+      thresholdSeconds: s.thresholdSeconds,
       elapsedMs,
     };
   }
