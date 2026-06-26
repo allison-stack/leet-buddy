@@ -57,7 +57,7 @@
 .lb-scroll::-webkit-scrollbar-track { background: transparent; }
 .lb-scroll::-webkit-scrollbar-thumb { background: rgba(255,161,22,0.4); border-radius: 2px; }
 .lb-scroll::-webkit-scrollbar-thumb:hover { background: #ffa116; }
-.lb-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.lb-btn:disabled, .lb-bar__btn:disabled { opacity: 0.4; cursor: not-allowed; }
 @keyframes lb-hint-flash {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; background-color: #ffa116; color: #fff; }
