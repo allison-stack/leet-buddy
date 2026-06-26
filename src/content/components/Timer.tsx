@@ -14,7 +14,7 @@ export function Timer({ elapsedFromWorker, status, pastThreshold }: Props) {
   useEffect(() => { setLocal(elapsedFromWorker); }, [elapsedFromWorker]);
 
   useEffect(() => {
-    if (status !== 'running') return;
+    if (status !== 'running' && status !== 'fired') return;
     const id = setInterval(() => setLocal(v => v + 1), TIMER_UI_TICK_MS);
     return () => clearInterval(id);
   }, [status]);

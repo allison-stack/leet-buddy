@@ -6,6 +6,7 @@ import { Timer } from './Timer';
 interface Props {
   elapsed: number;
   status: TimerStatus;
+  hintsUnlocked: boolean;
   phase: Phase;
   pendingCount: number;
   raceOpponent: string | null;
@@ -22,7 +23,7 @@ function formatMs(ms: number): string {
 }
 
 export function MinimizedBar({
-  elapsed, status, phase, pendingCount, raceOpponent, acceptedAt,
+  elapsed, status, hintsUnlocked, phase, pendingCount, raceOpponent, acceptedAt,
   onHint, onPauseToggle, onMarkSolved, onExpand,
 }: Props) {
   const isSolved = phase === 'solved';
@@ -43,7 +44,7 @@ export function MinimizedBar({
   return (
     <div className="lb-bar" role="toolbar" aria-label="Leet Buddy minimized">
       <span className="lb-bar__logo" aria-hidden="true">LB</span>
-      <Timer elapsedFromWorker={elapsed} status={status} pastThreshold={status === 'fired' || status === 'solved'} />
+      <Timer elapsedFromWorker={elapsed} status={status} pastThreshold={hintsUnlocked} />
       {pendingCount > 0 && (
         <span style={{
           background: '#e03030', color: '#fff', borderRadius: 10,
@@ -64,7 +65,7 @@ export function MinimizedBar({
       <span className="lb-bar__spacer" />
       {!isSolved && (
         <button className="lb-bar__btn" style={{ color: '#ffa116' }}
-          disabled={status !== 'fired' && status !== 'solved'}
+          disabled={!hintsUnlocked}
           onClick={onHint} title="Get a hint" aria-label="Get a hint">
           [?]
         </button>

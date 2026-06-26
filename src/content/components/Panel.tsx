@@ -29,6 +29,7 @@ export function Panel() {
   const [title, setTitle] = useState('');
   const [difficulty, setDifficulty] = useState<Difficulty>('easy');
   const [elapsed, setElapsed] = useState(0);
+  const [thresholdSeconds, setThresholdSeconds] = useState(Infinity);
   const [flashHints, setFlashHints] = useState(false);
   const [status, setStatus] = useState<TimerStatus>('idle');
   const [phase, setPhase] = useState<Phase>('timing');
@@ -62,6 +63,10 @@ export function Panel() {
 
   const phaseRef = useRef<Phase>(phase);
   phaseRef.current = phase;
+  const starterRef = useRef(starter);
+  starterRef.current = starter;
+  const hintsUnlocked = status === 'solved' || elapsed >= thresholdSeconds;
+  const prevHintsUnlockedRef = useRef(false);
   const userToggledMinimizedRef = useRef(false);
 
   useEffect(() => {
@@ -90,6 +95,7 @@ export function Panel() {
       .then(res => {
         if (res?.snapshot) {
           setElapsed(res.snapshot.elapsedSeconds);
+          setThresholdSeconds(res.snapshot.thresholdSeconds);
           setStatus(res.snapshot.status);
         }
       });
@@ -147,19 +153,29 @@ export function Panel() {
         if (typeof msg.elapsedSeconds === 'number') setElapsed(msg.elapsedSeconds);
         if (msg.status) setStatus(msg.status);
       }
-      if (msg.type === 'TIMER_FIRED') {
-        setFlashHints(true);
-        const code = readMonacoContents();
-        if (!isSubstantive(code, starter, 30)) setPhase('approach');
-        void (async () => {
-          const settings = await getSettings();
-          if (settings.timerSoundEnabled) await playTimerPing();
-        })();
-      }
     };
     chrome.runtime.onMessage.addListener(handler);
     return () => chrome.runtime.onMessage.removeListener(handler);
-  }, [starter]);
+  }, []);
+
+  useEffect(() => {
+    if (status !== 'running' && status !== 'fired') return;
+    const id = setInterval(() => setElapsed(v => v + 1), 1000);
+    return () => clearInterval(id);
+  }, [status]);
+
+  useEffect(() => {
+    if (hintsUnlocked && !prevHintsUnlockedRef.current) {
+      setFlashHints(true);
+      const code = readMonacoContents();
+      if (!isSubstantive(code, starterRef.current, 30)) setPhase('approach');
+      void (async () => {
+        const settings = await getSettings();
+        if (settings.timerSoundEnabled) await playTimerPing();
+      })();
+    }
+    prevHintsUnlockedRef.current = hintsUnlocked;
+  }, [hintsUnlocked]);
 
   useEffect(() => {
     if (!slug) return;
@@ -269,6 +285,7 @@ export function Panel() {
       <MinimizedBar
         elapsed={elapsed}
         status={status}
+        hintsUnlocked={hintsUnlocked}
         phase={phase}
         pendingCount={pendingCount}
         raceOpponent={challengePhase === 'racing' ? (friendProfile?.handle ?? null) : null}
@@ -323,7 +340,7 @@ export function Panel() {
                 onClick={pauseToggle}
                 title={status === 'paused' ? 'Click to resume' : 'Click to pause'}
               >
-                <Timer elapsedFromWorker={elapsed} status={status} pastThreshold={status === 'fired' || status === 'solved'} />
+                <Timer elapsedFromWorker={elapsed} status={status} pastThreshold={hintsUnlocked} />
               </div>
               <div style={{ fontSize: 10, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>
                 {status === 'paused' ? 'paused' : status === 'idle' ? 'ready' : 'running'}
@@ -368,7 +385,7 @@ export function Panel() {
                 <button
                   className={`lb-btn${flashHints ? ' flash' : ''}`}
                   style={{ flex: 1 }}
-                  disabled={status !== 'fired' && status !== 'solved'}
+                  disabled={!hintsUnlocked}
                   onClick={() => setPhase('hint')}
                   onAnimationEnd={() => setFlashHints(false)}
                 >
@@ -377,7 +394,7 @@ export function Panel() {
                 <button
                   className={`lb-btn${flashHints ? ' flash' : ''}`}
                   style={{ flex: 1 }}
-                  disabled={status !== 'fired' && status !== 'solved'}
+                  disabled={!hintsUnlocked}
                   onClick={() => setPhase('approach')}
                   onAnimationEnd={() => setFlashHints(false)}
                 >
