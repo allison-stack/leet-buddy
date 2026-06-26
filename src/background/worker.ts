@@ -171,7 +171,6 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
           sendResponse({ ok: false, error: 'rate limited' });
           return;
         }
-        await persistLimiter(state);
         try {
           const { primary, fallback } = await buildProviderConfigs();
           const { system, user } = approachEvalPrompt(msg.payload);
@@ -189,7 +188,6 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
           sendResponse({ ok: false, error: 'rate limited — try again later or raise cap in settings' });
           return;
         }
-        await persistLimiter(state);
         try {
           const ch = codeHash(msg.payload.userCode);
           const cached = state.cache.get(msg.payload.slug, msg.payload.tier, ch);
