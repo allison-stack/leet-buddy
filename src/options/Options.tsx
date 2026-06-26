@@ -106,7 +106,7 @@ export function Options() {
       </section>
 
       <section style={section}>
-        <h2>Timer thresholds (seconds)</h2>
+        <h2>Hint unlock time (seconds)</h2>
         {(['easy', 'medium', 'hard'] as const).map(d => (
           <div key={d}><label>{d}: <input type="number" min={30} max={3600}
             value={s.timerOverrides[d]} onChange={e => save({
@@ -120,7 +120,7 @@ export function Options() {
         <label>
           <input type="checkbox" checked={s.timerSoundEnabled}
             onChange={e => save({ ...s, timerSoundEnabled: e.target.checked })} />
-          Play a sound when the difficulty timer runs out
+          Play a sound when hints unlock
         </label>
       </section>
 

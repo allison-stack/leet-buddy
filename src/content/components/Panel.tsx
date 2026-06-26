@@ -28,7 +28,8 @@ export function Panel() {
   const [slug, setSlug] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [difficulty, setDifficulty] = useState<Difficulty>('easy');
-  const [remaining, setRemaining] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
+  const [flashHints, setFlashHints] = useState(false);
   const [status, setStatus] = useState<TimerStatus>('idle');
   const [phase, setPhase] = useState<Phase>('timing');
   const [approachResult, setApproachResult] = useState<ApproachEvalResponse | null>(null);
@@ -88,7 +89,7 @@ export function Panel() {
     void sendToWorker<{ ok: boolean; snapshot?: Snapshot }>({ type: 'TIMER_START', tabId: -1, slug: s, difficulty: d })
       .then(res => {
         if (res?.snapshot) {
-          setRemaining(res.snapshot.remainingSeconds);
+          setElapsed(res.snapshot.elapsedSeconds);
           setStatus(res.snapshot.status);
         }
       });
@@ -141,14 +142,15 @@ export function Panel() {
   }, [slug]);
 
   useEffect(() => {
-    const handler = (msg: { type: string; remainingSeconds?: number; status?: TimerStatus }) => {
+    const handler = (msg: { type: string; elapsedSeconds?: number; status?: TimerStatus }) => {
       if (msg.type === 'TIMER_TICK') {
-        if (typeof msg.remainingSeconds === 'number') setRemaining(msg.remainingSeconds);
+        if (typeof msg.elapsedSeconds === 'number') setElapsed(msg.elapsedSeconds);
         if (msg.status) setStatus(msg.status);
       }
       if (msg.type === 'TIMER_FIRED') {
+        setFlashHints(true);
         const code = readMonacoContents();
-        setPhase(isSubstantive(code, starter, 30) ? 'hint' : 'approach');
+        if (!isSubstantive(code, starter, 30)) setPhase('approach');
         void (async () => {
           const settings = await getSettings();
           if (settings.timerSoundEnabled) await playTimerPing();
@@ -265,7 +267,7 @@ export function Panel() {
   if (minimized) {
     return (
       <MinimizedBar
-        remaining={remaining}
+        elapsed={elapsed}
         status={status}
         phase={phase}
         pendingCount={pendingCount}
@@ -283,10 +285,10 @@ export function Panel() {
   }
 
   async function sendTimerControl(msg: ContentToWorker) {
-    const r = await sendToWorker<{ ok: boolean; snapshot?: { status: TimerStatus; remainingSeconds: number } }>(msg);
+    const r = await sendToWorker<{ ok: boolean; snapshot?: { status: TimerStatus; elapsedSeconds: number } }>(msg);
     if (r?.ok && r.snapshot) {
       setStatus(r.snapshot.status);
-      setRemaining(r.snapshot.remainingSeconds);
+      setElapsed(r.snapshot.elapsedSeconds);
     }
   }
 
@@ -321,7 +323,7 @@ export function Panel() {
                 onClick={pauseToggle}
                 title={status === 'paused' ? 'Click to resume' : 'Click to pause'}
               >
-                <Timer remainingFromWorker={remaining} status={status} />
+                <Timer elapsedFromWorker={elapsed} status={status} pastThreshold={status === 'fired' || status === 'solved'} />
               </div>
               <div style={{ fontSize: 10, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>
                 {status === 'paused' ? 'paused' : status === 'idle' ? 'ready' : 'running'}
@@ -363,10 +365,22 @@ export function Panel() {
 
             {phase !== 'solved' && (
               <div className="lb-row" style={{ marginTop: 8 }}>
-                <button className="lb-btn" style={{ flex: 1 }} onClick={() => setPhase('hint')}>
+                <button
+                  className={`lb-btn${flashHints ? ' flash' : ''}`}
+                  style={{ flex: 1 }}
+                  disabled={status !== 'fired' && status !== 'solved'}
+                  onClick={() => setPhase('hint')}
+                  onAnimationEnd={() => setFlashHints(false)}
+                >
                   💡 Hint
                 </button>
-                <button className="lb-btn" style={{ flex: 1 }} onClick={() => setPhase('approach')}>
+                <button
+                  className={`lb-btn${flashHints ? ' flash' : ''}`}
+                  style={{ flex: 1 }}
+                  disabled={status !== 'fired' && status !== 'solved'}
+                  onClick={() => setPhase('approach')}
+                  onAnimationEnd={() => setFlashHints(false)}
+                >
                   🧠 Approach
                 </button>
               </div>
