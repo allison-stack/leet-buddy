@@ -21,7 +21,8 @@
 .lb-btn.primary { background: #ffa116; color: #1a1a1a; border-color: #ffa116; font-weight: 700; }
 .lb-btn.primary:hover { background: #ffb13d; }
 .lb-timer { font-variant-numeric: tabular-nums; font-size: 28px; font-weight: 700;
-  color: #ffa116; font-family: monospace; letter-spacing: 2px; }
+  color: #f0f0f0; font-family: monospace; letter-spacing: 2px; transition: color 0.5s; }
+.lb-timer--past { color: #ffa116; }
 .lb-row { display: flex; gap: 8px; margin-top: 8px; }
 .lb-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.07); }
 .lb-hint { background: #2d2d2d; border-left: 3px solid #ffa116; padding: 10px; border-radius: 6px;
@@ -45,7 +46,7 @@
   box-shadow: 0 10px 30px rgba(0,0,0,.4); z-index: 2147483647;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; }
 .lb-bar__logo { font-weight: 700; font-size: 11px; letter-spacing: 0.5px; color: #ffa116; }
-.lb-bar .lb-timer { font-size: 13px; color: #ffa116; }
+.lb-bar .lb-timer { font-size: 13px; }
 .lb-bar__btn { background: transparent; border: none; cursor: pointer;
   font-family: monospace; font-weight: 700; font-size: 11px; line-height: 1; padding: 3px 4px; border-radius: 3px; }
 .lb-bar__btn:hover { background: rgba(255,255,255,0.08); }
@@ -56,3 +57,9 @@
 .lb-scroll::-webkit-scrollbar-track { background: transparent; }
 .lb-scroll::-webkit-scrollbar-thumb { background: rgba(255,161,22,0.4); border-radius: 2px; }
 .lb-scroll::-webkit-scrollbar-thumb:hover { background: #ffa116; }
+.lb-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+@keyframes lb-hint-flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; background-color: #ffa116; color: #fff; }
+}
+.lb-btn.flash { animation: lb-hint-flash 0.5s ease-in-out 3; }

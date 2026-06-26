@@ -3,22 +3,24 @@ import type { TimerStatus } from '@/shared/messages';
 import { TIMER_UI_TICK_MS } from '@/shared/constants';
 
 interface Props {
-  remainingFromWorker: number;
+  elapsedFromWorker: number;
   status: TimerStatus;
+  pastThreshold: boolean;
 }
 
-export function Timer({ remainingFromWorker, status }: Props) {
-  const [local, setLocal] = useState(remainingFromWorker);
+export function Timer({ elapsedFromWorker, status, pastThreshold }: Props) {
+  const [local, setLocal] = useState(elapsedFromWorker);
 
-  useEffect(() => { setLocal(remainingFromWorker); }, [remainingFromWorker]);
+  useEffect(() => { setLocal(elapsedFromWorker); }, [elapsedFromWorker]);
 
   useEffect(() => {
     if (status !== 'running') return;
-    const id = setInterval(() => setLocal(v => Math.max(0, v - 1)), TIMER_UI_TICK_MS);
+    const id = setInterval(() => setLocal(v => v + 1), TIMER_UI_TICK_MS);
     return () => clearInterval(id);
   }, [status]);
 
   const mm = String(Math.floor(local / 60)).padStart(2, '0');
   const ss = String(local % 60).padStart(2, '0');
-  return <span className="lb-timer">{mm}:{ss}</span>;
+  const className = `lb-timer${pastThreshold ? ' lb-timer--past' : ''}`;
+  return <span className={className}>{mm}:{ss}</span>;
 }
