@@ -32,7 +32,7 @@ export type ContentToWorker =
   | { type: 'GET_STREAK_COUNT' };
 
 export type WorkerToContent =
-  | { type: 'TIMER_TICK'; tabId: number; remainingSeconds: number; status: TimerStatus }
+  | { type: 'TIMER_TICK'; tabId: number; elapsedSeconds: number; status: TimerStatus }
   | { type: 'TIMER_FIRED'; tabId: number; askForApproach: boolean }
   | { type: 'APPROACH_EVAL_RESULT'; payload: ApproachEvalResponse }
   | { type: 'HINT_RESULT'; tier: 1 | 2 | 3 | 4; text: string }

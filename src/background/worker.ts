@@ -107,12 +107,14 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
         });
         return;
       }
-      case 'TIMER_START':
+      case 'TIMER_START': {
         if (tabId === undefined) { sendResponse({ ok: false, error: 'no tabId' }); return; }
-        state.timers.start(tabId, msg.slug, msg.difficulty, durationFor(msg.difficulty), now);
+        const settings = await getSettings();
+        state.timers.start(tabId, msg.slug, msg.difficulty, settings.timerOverrides[msg.difficulty], now);
         await persistTimers(state);
         sendResponse({ ok: true, snapshot: state.timers.snapshot(tabId, now) });
         return;
+      }
       case 'TIMER_PAUSE':
         if (tabId === undefined) { sendResponse({ ok: false, error: 'no tabId' }); return; }
         state.timers.pause(tabId, now); break;
@@ -169,6 +171,7 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
           sendResponse({ ok: false, error: 'rate limited' });
           return;
         }
+        await persistLimiter(state);
         try {
           const { primary, fallback } = await buildProviderConfigs();
           const { system, user } = approachEvalPrompt(msg.payload);
@@ -186,6 +189,7 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
           sendResponse({ ok: false, error: 'rate limited — try again later or raise cap in settings' });
           return;
         }
+        await persistLimiter(state);
         try {
           const ch = codeHash(msg.payload.userCode);
           const cached = state.cache.get(msg.payload.slug, msg.payload.tier, ch);
@@ -403,7 +407,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   for (const [tabId] of state.timers.toJSON()) {
     const snap = state.timers.snapshot(tabId, now);
     if (!snap) continue;
-    const msg: WorkerToContent = { type: 'TIMER_TICK', tabId, remainingSeconds: snap.remainingSeconds, status: snap.status };
+    const msg: WorkerToContent = { type: 'TIMER_TICK', tabId, elapsedSeconds: snap.elapsedSeconds, status: snap.status };
     chrome.tabs.sendMessage(tabId, msg).catch(() => { /* tab closed */ });
     if (snap.status === 'fired' && state.timers.consumeFiredEvent(tabId)) {
       const fired: WorkerToContent = { type: 'TIMER_FIRED', tabId, askForApproach: false /* refined in Task 22 */ };
@@ -436,9 +440,6 @@ async function fetchProfile(userId: string): Promise<Profile | null> {
   }
 }
 
-function durationFor(difficulty: 'easy' | 'medium' | 'hard'): number {
-  return { easy: 180, medium: 300, hard: 600 }[difficulty];
-}
 
 function parseApproachReply(text: string): { verdict: 'validate' | 'redirect' | 'clarify'; message: string } {
   const verdictMatch = text.match(/VERDICT:\s*(validate|redirect|clarify)/i);
