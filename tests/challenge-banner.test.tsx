@@ -57,4 +57,19 @@ describe('ChallengeBanner — waiting (sender view)', () => {
     );
     expect(screen.getByText(/waiting|left to accept/i)).toBeTruthy();
   });
+
+  it('shows non-zero time on initial render', () => {
+    render(
+      <ChallengeBanner
+        challenge={makeChallenge({
+          sender_id: 'me', recipient_id: 'alex-id', accepted_at: null,
+          expires_at: new Date(Date.now() + 2 * 60 * 60 * 1000 + 1000).toISOString(),
+        })}
+        meId="me"
+        friendHandle="alex"
+        onCancel={() => {}}
+      />,
+    );
+    expect(screen.getByText(/left to accept/i).textContent).not.toContain('0m');
+  });
 });

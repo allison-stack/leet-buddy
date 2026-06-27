@@ -24,8 +24,12 @@ export function ChallengeBanner({ challenge, meId, friendHandle, onCancel }: Pro
   const isRacing = challenge.accepted_at !== null && challenge.recipient_id === meId;
   const isWaiting = challenge.sender_id === meId;
 
-  const [elapsed, setElapsed] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(0);
+  const [elapsed, setElapsed] = useState(() =>
+    isRacing && challenge.accepted_at ? Date.now() - new Date(challenge.accepted_at).getTime() : 0,
+  );
+  const [timeLeft, setTimeLeft] = useState(() =>
+    isWaiting ? Math.max(0, new Date(challenge.expires_at).getTime() - Date.now()) : 0,
+  );
 
   useEffect(() => {
     const id = setInterval(() => {
