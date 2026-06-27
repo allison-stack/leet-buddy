@@ -50,6 +50,27 @@ export async function setDailyLog(log: DailyLog): Promise<void> {
   await chrome.storage.sync.set({ daily_log: pruned });
 }
 
+export async function getSolveDates(): Promise<string[]> {
+  const { solve_dates } = await chrome.storage.sync.get('solve_dates');
+  return (solve_dates as string[]) ?? [];
+}
+
+export async function addSolveDate(date: string): Promise<void> {
+  const dates = await getSolveDates();
+  if (dates.includes(date)) return;
+  dates.push(date);
+  dates.sort();
+  // Prune: only keep the consecutive run ending at the latest date
+  let keep = 1;
+  for (let i = dates.length - 2; i >= 0; i--) {
+    const curr = new Date(dates[i] + 'T00:00:00Z');
+    const next = new Date(dates[i + 1] + 'T00:00:00Z');
+    if (next.getTime() - curr.getTime() === 86_400_000) keep++;
+    else break;
+  }
+  await chrome.storage.sync.set({ solve_dates: dates.slice(-keep) });
+}
+
 export async function getLocal<T>(key: string): Promise<T | undefined> {
   const res = await chrome.storage.local.get(key);
   return res[key] as T | undefined;

@@ -3,7 +3,7 @@ import type { ContentToWorker, WorkerToContent } from '@/shared/messages';
 import type { ProblemRecord } from '@/shared/types';
 import { TIMER_TICK_MS } from '@/shared/constants';
 import { scheduleDailyAlarm, fireDailyReminder, listForSource } from './alarms';
-import { getSettings, getProblems, getDailyLog, setDailyLog, upsertProblem } from '@/shared/storage';
+import { getSettings, getProblems, getDailyLog, setDailyLog, upsertProblem, getSolveDates, addSolveDate } from '@/shared/storage';
 import { dueReviews, pickDaily, isoToday } from './scheduler';
 import { initialSm2State, updateSm2 } from '@/shared/sm2';
 import { approachEvalPrompt, hintPrompt } from '@/llm/prompts';
@@ -92,7 +92,8 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
             await setDailyLog(log);
           }
         }
-        const streak = computeStreak(log, now);
+        const solveDates = await getSolveDates();
+        const streak = computeStreak(solveDates, now);
         sendResponse({
           ok: true,
           payload: {
@@ -147,6 +148,17 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
         state.timers.markSolved(tabId, now);
         await upsertProblem(rec);
         await persistTimers(state);
+        await addSolveDate(isoToday(now));
+
+        const solveLog = await getDailyLog();
+        const solveToday = isoToday(now);
+        const todayEntry = solveLog[solveToday];
+        if (todayEntry && todayEntry.slug === msg.slug && !todayEntry.completed) {
+          todayEntry.completed = true;
+          todayEntry.completedAt = now;
+          await setDailyLog(solveLog);
+        }
+
         sendResponse({ ok: true });
         return;
       }
@@ -448,12 +460,13 @@ function parseApproachReply(text: string): { verdict: 'validate' | 'redirect' | 
   };
 }
 
-function computeStreak(log: Record<string, { completed: boolean }>, now: number): number {
+function computeStreak(solveDates: string[], now: number): number {
+  const dateSet = new Set(solveDates);
   let streak = 0;
   const d = new Date(now);
   while (true) {
     const key = d.toISOString().slice(0, 10);
-    if (log[key]?.completed) { streak++; d.setDate(d.getDate() - 1); }
+    if (dateSet.has(key)) { streak++; d.setDate(d.getDate() - 1); }
     else break;
   }
   return streak;
