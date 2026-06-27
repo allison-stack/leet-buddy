@@ -24,4 +24,13 @@ describe('RateLimiter', () => {
     rl.tryAcquire(0); rl.tryAcquire(10);
     expect(rl.usedIn(60_000, 10)).toBe(2);
   });
+
+  it('restores its window from toJSON so the cap survives a worker restart', () => {
+    const rl = new RateLimiter(2, 60_000);
+    rl.tryAcquire(0); rl.tryAcquire(10);
+    expect(rl.tryAcquire(20)).toBe(false);
+
+    const restored = new RateLimiter(2, 60_000, rl.toJSON());
+    expect(restored.tryAcquire(30)).toBe(false); // still at cap after reload
+  });
 });

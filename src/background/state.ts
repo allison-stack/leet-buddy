@@ -19,11 +19,12 @@ export async function getState(): Promise<WorkerState> {
   const settings = await getSettings();
   const timerJson = await getLocal<Array<[number, unknown]>>('timer_state');
   const cacheJson = await getLocal<{ key: string; value: string }[]>('hint_cache');
+  const limiterJson = await getLocal<number[]>('rate_limit');
 
   cached = {
     timers: timerJson ? TimerManager.fromJSON(timerJson as Parameters<typeof TimerManager.fromJSON>[0]) : new TimerManager(),
     cache: cacheJson ? HintCache.fromJSON(cacheJson, HINT_CACHE_MAX_ENTRIES) : new HintCache(HINT_CACHE_MAX_ENTRIES),
-    limiter: new RateLimiter(settings.hourlyRequestCap, 60 * 60 * 1000),
+    limiter: new RateLimiter(settings.hourlyRequestCap, 60 * 60 * 1000, limiterJson ?? []),
   };
   return cached;
 }
@@ -34,6 +35,10 @@ export async function persistTimers(state: WorkerState): Promise<void> {
 
 export async function persistCache(state: WorkerState): Promise<void> {
   await setLocal('hint_cache', state.cache.toJSON());
+}
+
+export async function persistLimiter(state: WorkerState): Promise<void> {
+  await setLocal('rate_limit', state.limiter.toJSON());
 }
 
 export async function buildProviderConfigs(): Promise<{ primary: ProviderConfig; fallback?: ProviderConfig }> {

@@ -1,6 +1,12 @@
 export class RateLimiter {
-  private timestamps: number[] = [];
-  constructor(private cap: number, private windowMs: number) {}
+  private timestamps: number[];
+  constructor(private cap: number, private windowMs: number, initial: number[] = []) {
+    this.timestamps = [...initial];
+  }
+
+  toJSON(): number[] {
+    return this.timestamps;
+  }
 
   tryAcquire(now: number): boolean {
     this.prune(now);
