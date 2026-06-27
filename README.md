@@ -4,7 +4,7 @@
   <img src="public/icons/128.png" width="80" alt="Leet Buddy mascot" />
 </p>
 
-<p align="center"><strong>A patient coding-interview tutor that lives on LeetCode.</strong></p>
+<p align="center"><strong>Your buddy that keeps you from giving up too early or spending forever on LeetCode problems.</strong></p>
 
 ---
 
@@ -57,7 +57,7 @@ You're 40 minutes into a LeetCode problem. You've been staring at a blank editor
 
 ### Stuck timer + progressive hints
 
-A timer starts when you open a problem. After a configurable threshold, hints unlock one at a time — just enough to get unstuck without spoiling the solution.
+A timer starts when you open a problem. After a per-difficulty threshold (configurable for easy / medium / hard), hints unlock one at a time — just enough to get unstuck without spoiling the solution. Click the timer to pause and resume.
 
 <!-- screenshot: panel on a problem page with stopwatch running -->
 ![Leet Buddy stopwatch](assets/screenshots/leet-buddy-stopwatch.png)
@@ -69,7 +69,7 @@ A timer starts when you open a problem. After a configurable threshold, hints un
 
 ### Approach-first prompt
 
-Before you type a single line of code, Leet Buddy intercepts and asks you to describe your approach. Forces you to think before you implement.
+When the hint threshold fires and you haven't written much code yet, Leet Buddy asks you to describe your approach first. You can also open it manually at any time after hints unlock. Forces you to think before you implement.
 
 <!-- screenshot: approach-first prompt dialog -->
 ![Leet Buddy approach](assets/screenshots/leet-buddy-approach.png)
@@ -89,16 +89,14 @@ Problems you mark as solved get scheduled for review using SM2. The extension nu
 Pick a problem list — LC Daily, Blind 75, NeetCode 150, LC 75, or company-tagged — and get a daily reminder to attempt one problem from it.
 
 <!-- screenshot: daily nudge notification or popup daily tab -->
-
+![Leet Buddy daily nudge](assets/screenshots/leet-buddy-daily.png)
 ---
 
 ### Challenger
 
-Sign in to race a friend on the same problem. Send a challenge, they accept, and both of you see a live timer. First to submit a passing solution wins.
+Sign in to race a friend on the same problem. After solving a problem, send a challenge with your solve time attached. Your friend sees it in their Inbox tab, accepts, and races on the same problem. First to submit a passing solution wins — result screen shows winner and your current streak.
 
-<!-- screenshot: challenger race in progress on panel -->
-
-<!-- screenshot: result screen showing winner -->
+The panel's bottom navigation has three tabs: **Solve** (timer + hints), **Inbox** (incoming challenges), and **Friends** (manage your friend list).
 
 ---
 
@@ -108,10 +106,13 @@ Right-click the extension icon → **Options**, or click the gear icon inside th
 
 | Setting | Details |
 |---|---|
-| **AI provider** | Groq (free, default), OpenAI, Anthropic, or Google |
+| **AI provider** | Groq (free, default), Google AI Studio / Gemini (free), Anthropic (paid), OpenAI (paid) |
 | **API key** | Get a free Groq key at [console.groq.com](https://console.groq.com) |
-| **Daily source** | LC Daily / Blind 75 / NeetCode 150 / LC 75 / Company-tagged |
-| **Hint threshold** | How long to wait before hints unlock |
+| **Daily source** | LC Daily / Blind 75 / NeetCode 150 / LC 75 / Company-tagged (Premium) |
+| **Hint threshold** | Separate unlock times for easy / medium / hard (in seconds) |
+| **Timer sound** | Play a ping when hints unlock |
+| **Hourly request cap** | Max AI calls per hour |
+| **Backup** | Export / import all progress as JSON |
 
 <!-- screenshot: options page -->
 
