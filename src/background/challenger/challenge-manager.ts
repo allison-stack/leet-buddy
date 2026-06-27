@@ -17,6 +17,9 @@ export interface UpdateChain {
   or(filter: string): UpdateChain;
   is(col: string, val: null): UpdateChain;
   lt(col: string, val: string): UpdateChain;
+  select(cols: string): {
+    then(resolve: (r: { data: { id: string }[] | null; error: Error | null }) => void): void;
+  };
   then(resolve: (r: { error: Error | null }) => void): void;
 }
 
@@ -185,10 +188,16 @@ export class ChallengeManager implements ChallengeManagerLike {
   }
 
   private async update(patch: object, challengeId: string): Promise<void> {
-    await new Promise<void>((resolve, reject) => {
-      this.sb.from('challenges').update(patch).eq('id', challengeId)
-        .then(({ error }) => (error ? reject(error) : resolve()));
+    const { data, error } = await new Promise<{ data: { id: string }[] | null; error: Error | null }>((resolve) => {
+      this.sb.from('challenges').update(patch).eq('id', challengeId).select('id').then(resolve);
     });
+    if (error) throw error;
+    // A 0-row result means RLS rejected the write or the challenge already left
+    // `pending` — supabase reports no error, so without this check the caller
+    // would be told the update succeeded.
+    if (!data || data.length === 0) {
+      throw new Error('Challenge update did not apply — it may have already been resolved.');
+    }
   }
 
   private async requireMeId(): Promise<string> {

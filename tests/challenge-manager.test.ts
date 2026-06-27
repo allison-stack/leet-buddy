@@ -32,6 +32,7 @@ interface StubConfig {
   rows?: Challenge[];
   rowSets?: Challenge[][];
   insertId?: string;
+  updateRows?: { id: string }[]; // rows an update().select() reports affected; [] simulates RLS denial
 }
 
 function makeStub(config: StubConfig = {}) {
@@ -51,11 +52,20 @@ function makeStub(config: StubConfig = {}) {
 
   function makeUpdateChain(patch: object): UpdateChain {
     const filters: Record<string, unknown> = {};
+    const record = () => updates.push({ patch, filters: { ...filters } });
     const chain: UpdateChain = {
       eq: (col, val) => { filters[col] = val; return chain; },
       or: () => chain, is: () => chain, lt: () => chain,
+      // Used by the single-row mutations (accept/cancel/submitResult).
+      select: (_cols) => ({
+        then: (resolve) => {
+          record();
+          resolve({ data: config.updateRows ?? [{ id: 'c1' }], error: null });
+        },
+      }),
+      // Used by the bulk expiry updates, which don't request affected rows.
       then: (resolve) => {
-        updates.push({ patch, filters: { ...filters } });
+        record();
         resolve({ error: null });
       },
     };
@@ -105,6 +115,23 @@ describe('ChallengeManager.submitResult', () => {
     const cm = new ChallengeManager(stub);
     const result = await cm.submitResult('c1', 200000);
     expect(result.winner_id).toBe(meId);
+  });
+});
+
+describe('ChallengeManager update guards', () => {
+  it('submitResult throws when no row is affected (RLS denial / already resolved)', async () => {
+    const { stub } = makeStub({
+      rows: [makeChallenge({ accepted_at: '2026-06-07T01:00:00Z' })],
+      updateRows: [],
+    });
+    const cm = new ChallengeManager(stub);
+    await expect(cm.submitResult('c1', 200000)).rejects.toThrow(/did not apply/);
+  });
+
+  it('accept throws when no row is affected', async () => {
+    const { stub } = makeStub({ updateRows: [] });
+    const cm = new ChallengeManager(stub);
+    await expect(cm.accept('c1')).rejects.toThrow(/did not apply/);
   });
 });
 
