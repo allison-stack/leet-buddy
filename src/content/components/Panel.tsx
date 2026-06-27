@@ -84,27 +84,52 @@ export function Panel() {
   }, []);
 
   useEffect(() => {
-    const s = slugFromUrl();
-    if (!s) return;
-    setSlug(s);
-    setTitle(readTitle());
-    const d = readDifficulty();
-    setDifficulty(d);
-    setDismissed(false);
-    void sendToWorker<{ ok: boolean; snapshot?: Snapshot }>({ type: 'TIMER_START', tabId: -1, slug: s, difficulty: d })
-      .then(res => {
-        if (res?.snapshot) {
-          setElapsed(res.snapshot.elapsedSeconds);
-          setThresholdSeconds(res.snapshot.thresholdSeconds);
-          setStatus(res.snapshot.status);
+    function initProblem() {
+      const s = slugFromUrl();
+      if (!s) return;
+      setSlug(s);
+      setTitle(readTitle());
+      const d = readDifficulty();
+      setDifficulty(d);
+      setDismissed(false);
+      setPhase('timing');
+      setApproachResult(null);
+      setHintTierUsed(0);
+      setElapsed(0);
+      setStatus('idle');
+      setFlashHints(false);
+      setStoredSolveData(null);
+      setChallengePhase('none');
+      setActiveChallenge(null);
+      setFriendProfile(null);
+      setSolveData(null);
+      prevHintsUnlockedRef.current = false;
+      void sendToWorker<{ ok: boolean; snapshot?: Snapshot }>({ type: 'TIMER_START', tabId: -1, slug: s, difficulty: d })
+        .then(res => {
+          if (res?.snapshot) {
+            setElapsed(res.snapshot.elapsedSeconds);
+            setThresholdSeconds(res.snapshot.thresholdSeconds);
+            setStatus(res.snapshot.status);
+          }
+        });
+      void getProblems().then(problems => {
+        const rec = problems[s];
+        if (rec?.lastSolveMs) {
+          setStoredSolveData({ timeMs: rec.lastSolveMs, lcRuntimePct: rec.lastSolveLcRuntimePct, lcMemPct: rec.lastSolveLcMemPct });
         }
       });
-    void getProblems().then(problems => {
-      const rec = problems[s];
-      if (rec?.lastSolveMs) {
-        setStoredSolveData({ timeMs: rec.lastSolveMs, lcRuntimePct: rec.lastSolveLcRuntimePct, lcMemPct: rec.lastSolveLcMemPct });
+    }
+
+    initProblem();
+
+    let lastHref = location.href;
+    const id = setInterval(() => {
+      if (location.href !== lastHref) {
+        lastHref = location.href;
+        if (slugFromUrl()) setTimeout(initProblem, 600);
       }
-    });
+    }, 500);
+    return () => clearInterval(id);
   }, []);
 
   useEffect(() => {
