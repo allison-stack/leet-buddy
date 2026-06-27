@@ -113,6 +113,15 @@ export function SignedOutPrompt({ onSignedIn }: Props) {
         )}
 
         {error && <p style={errorStyle}>{error}</p>}
+
+        <div style={settingsRow}>
+          <p style={{ margin: '0 0 6px', fontSize: 12, color: '#6b7280' }}>
+            Just want hints? An account is only needed for challenges.
+          </p>
+          <button onClick={() => chrome.runtime.openOptionsPage()} style={linkBtn}>
+            Configure API key in Settings →
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -141,3 +150,6 @@ const linkBtn: React.CSSProperties = {
   color: '#6b7280', cursor: 'pointer', fontFamily: 'inherit',
 };
 const errorStyle: React.CSSProperties = { color: '#f87171', fontSize: 12, marginTop: 8 };
+const settingsRow: React.CSSProperties = {
+  marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.07)',
+};

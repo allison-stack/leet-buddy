@@ -3,18 +3,20 @@ import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/re
 import { SignedOutPrompt } from '@/popup/SignedOutPrompt';
 
 const sendMessage = vi.fn();
+const openOptionsPage = vi.fn();
 const storageGet = vi.fn(async () => ({}));
 const storageSet = vi.fn(async () => {});
 const storageRemove = vi.fn(async () => {});
 
 beforeEach(() => {
   sendMessage.mockReset();
+  openOptionsPage.mockReset();
   storageGet.mockReset();
   storageGet.mockResolvedValue({});
   storageSet.mockReset();
   storageRemove.mockReset();
   (globalThis as unknown as { chrome: unknown }).chrome = {
-    runtime: { sendMessage },
+    runtime: { sendMessage, openOptionsPage },
     storage: { local: { get: storageGet, set: storageSet, remove: storageRemove } },
   };
 });
@@ -27,6 +29,12 @@ describe('SignedOutPrompt', () => {
     expect(screen.getByPlaceholderText(/email/i)).toBeTruthy();
     const btn = screen.getByRole('button', { name: /send code/i }) as HTMLButtonElement;
     expect(btn.disabled).toBe(true);
+  });
+
+  it('opens the options page so signed-out users can configure an API key', () => {
+    render(<SignedOutPrompt onSignedIn={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /configure api key/i }));
+    expect(openOptionsPage).toHaveBeenCalledOnce();
   });
 
   it('sends AUTH_SEND_OTP and moves to the code step on success', async () => {
