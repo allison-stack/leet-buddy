@@ -10,7 +10,7 @@
 .lb-header__minimize { background: transparent; color: #f0f0f0; border: none; cursor: pointer;
   font-size: 14px; line-height: 1; padding: 2px 6px; border-radius: 4px; opacity: 0.7; }
 .lb-header__minimize:hover { background: rgba(255,255,255,0.08); opacity: 1; }
-.lb-body { overflow: auto; flex: 1; min-height: 0; padding: 10px 0; }
+.lb-body { overflow-y: auto; overflow-x: hidden; flex: 1; min-height: 0; padding: 10px 0; }
 .lb-body::-webkit-scrollbar { width: 4px; }
 .lb-body::-webkit-scrollbar-track { background: transparent; }
 .lb-body::-webkit-scrollbar-thumb { background: rgba(255,161,22,0.4); border-radius: 2px; }
