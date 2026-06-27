@@ -59,8 +59,8 @@ You're 40 minutes into a LeetCode problem. You've been staring at a blank editor
 
 A timer starts when you open a problem. After a configurable threshold, hints unlock one at a time — just enough to get unstuck without spoiling the solution.
 
-<!-- screenshot: panel on a problem page with timer running -->
-![Leet Buddy timer](assets/screenshots/leet-buddy-timer.png)
+<!-- screenshot: panel on a problem page with stopwatch running -->
+![Leet Buddy stopwatch](assets/screenshots/leet-buddy-stopwatch.png)
 
 <!-- screenshot: hints expanded showing progressive reveal -->
 ![Leet Buddy hints](assets/screenshots/leet-buddy-hint.png)
