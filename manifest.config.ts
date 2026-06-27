@@ -4,7 +4,7 @@ export default defineManifest({
   manifest_version: 3,
   name: 'Leet Buddy',
   version: '0.1.0',
-  description: 'Keeps you from giving up too early or spending forever on LeetCode problems.',
+  description: 'Your buddy that keeps you from giving up too early or spending forever on LeetCode problems.',
   icons: {
     '16': 'public/icons/16.png',
     '32': 'public/icons/32.png',
