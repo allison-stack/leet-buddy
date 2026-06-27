@@ -12,6 +12,11 @@ describe('stripCodeBlocks', () => {
     expect(stripCodeBlocks(input)).toBe('Note:\n[code removed — Leet Buddy hints stay in prose]\nend');
   });
 
+  it('removes single-line fenced snippets (no trailing newline)', () => {
+    const input = 'Recurrence: ```dp[i] = dp[i-1] + dp[i-2]``` — fill bottom-up.';
+    expect(stripCodeBlocks(input)).toBe('Recurrence: [code removed — Leet Buddy hints stay in prose] — fill bottom-up.');
+  });
+
   it('passes through prose untouched', () => {
     expect(stripCodeBlocks('Use a hash map for O(1) lookup.')).toBe('Use a hash map for O(1) lookup.');
   });
