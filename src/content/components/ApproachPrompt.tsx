@@ -35,7 +35,7 @@ export function ApproachPrompt({ slug, problemStatement, difficulty, onResult, o
         value={text}
         onChange={e => setText(e.target.value)}
         rows={3}
-        style={{ width: '100%', background: '#2d2d2d', color: '#f0f0f0',
+        style={{ width: '100%', boxSizing: 'border-box', background: '#2d2d2d', color: '#f0f0f0',
                  border: '1px solid #3d3d3d', borderRadius: 6, padding: 8 }}
         placeholder="e.g. iterate the array, store each (target - n) in a hash map…"
       />
