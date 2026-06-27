@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react';
 import { SignedOutPrompt } from '@/popup/SignedOutPrompt';
 
 const sendMessage = vi.fn();
@@ -68,7 +68,7 @@ describe('SignedOutPrompt', () => {
     expect(screen.getByText(/alice@example\.com/)).toBeTruthy();
   });
 
-  it('persists step+email after Send code so the popup can be reopened', async () => {
+  it('persists step+email+codeSentAt after Send code so the popup can be reopened', async () => {
     sendMessage.mockResolvedValueOnce({ ok: true });
     render(<SignedOutPrompt onSignedIn={() => {}} />);
     fireEvent.change(screen.getByPlaceholderText(/email/i), {
@@ -77,7 +77,7 @@ describe('SignedOutPrompt', () => {
     fireEvent.click(screen.getByRole('button', { name: /send code/i }));
     await waitFor(() => expect(screen.getByPlaceholderText(/code/i)).toBeTruthy());
     expect(storageSet).toHaveBeenCalledWith({
-      signin_state: { step: 'code', email: 'alice@example.com' },
+      signin_state: expect.objectContaining({ step: 'code', email: 'alice@example.com', codeSentAt: expect.any(Number) }),
     });
   });
 
@@ -114,5 +114,58 @@ describe('SignedOutPrompt', () => {
     fireEvent.change(screen.getByPlaceholderText(/code/i), { target: { value: '123456' } });
     fireEvent.click(screen.getByRole('button', { name: /verify/i }));
     await waitFor(() => expect(onSignedIn).toHaveBeenCalledWith(fakeUser));
+  });
+
+  it('shows a resend button with cooldown after sending code', async () => {
+    sendMessage.mockResolvedValueOnce({ ok: true });
+    render(<SignedOutPrompt onSignedIn={() => {}} />);
+    fireEvent.change(screen.getByPlaceholderText(/email/i), {
+      target: { value: 'alice@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /send code/i }));
+    await waitFor(() => screen.getByPlaceholderText(/code/i));
+    const resend = screen.getByRole('button', { name: /resend code in/i }) as HTMLButtonElement;
+    expect(resend.disabled).toBe(true);
+    expect(resend.textContent).toMatch(/Resend code in 60s/);
+  });
+
+  it('restores cooldown from persisted codeSentAt on reopen', async () => {
+    const thirtySecondsAgo = Date.now() - 30_000;
+    storageGet.mockResolvedValueOnce({
+      signin_state: { step: 'code', email: 'alice@example.com', codeSentAt: thirtySecondsAgo },
+    });
+    render(<SignedOutPrompt onSignedIn={() => {}} />);
+    await waitFor(() => screen.getByPlaceholderText(/code/i));
+    const resend = screen.getByRole('button', { name: /resend code in/i }) as HTMLButtonElement;
+    expect(resend.disabled).toBe(true);
+    expect(resend.textContent).toMatch(/Resend code in 30s/);
+  });
+
+  it('does not restore cooldown if codeSentAt is older than 60s', async () => {
+    const twoMinutesAgo = Date.now() - 120_000;
+    storageGet.mockResolvedValueOnce({
+      signin_state: { step: 'code', email: 'alice@example.com', codeSentAt: twoMinutesAgo },
+    });
+    render(<SignedOutPrompt onSignedIn={() => {}} />);
+    await waitFor(() => screen.getByPlaceholderText(/code/i));
+    const resend = screen.getByRole('button', { name: /resend code/i }) as HTMLButtonElement;
+    expect(resend.disabled).toBe(false);
+    expect(resend.textContent).toBe('Resend code');
+  });
+
+  it('resend button becomes enabled after cooldown expires', async () => {
+    const thirtySecondsAgo = Date.now() - 59_000;
+    storageGet.mockResolvedValueOnce({
+      signin_state: { step: 'code', email: 'alice@example.com', codeSentAt: thirtySecondsAgo },
+    });
+    render(<SignedOutPrompt onSignedIn={() => {}} />);
+    await waitFor(() => screen.getByPlaceholderText(/code/i));
+
+    const resend = () => screen.getByRole('button', { name: /resend code/i }) as HTMLButtonElement;
+    expect(resend().disabled).toBe(true);
+    expect(resend().textContent).toMatch(/Resend code in 1s/);
+
+    await waitFor(() => expect(resend().disabled).toBe(false), { timeout: 3000 });
+    expect(resend().textContent).toBe('Resend code');
   });
 });

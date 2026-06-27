@@ -10,7 +10,9 @@ interface Props { onSignedIn: (user: Profile) => void }
 // "we already sent you a code for <email>" context.
 const SIGN_IN_STATE_KEY = 'signin_state';
 
-interface PersistedState { step: Step; email: string }
+const COOLDOWN_SECONDS = 60;
+
+interface PersistedState { step: Step; email: string; codeSentAt?: number }
 
 export function SignedOutPrompt({ onSignedIn }: Props) {
   const [step, setStep] = useState<Step>('email');
@@ -18,6 +20,7 @@ export function SignedOutPrompt({ onSignedIn }: Props) {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cooldown, setCooldown] = useState(0);
 
   // Restore mid-flow state on mount (popup may have been closed/reopened
   // between sending the code and entering it).
@@ -27,16 +30,29 @@ export function SignedOutPrompt({ onSignedIn }: Props) {
       if (saved?.step === 'code' && saved.email) {
         setStep('code');
         setEmail(saved.email);
+        if (saved.codeSentAt) {
+          const remaining = COOLDOWN_SECONDS - Math.floor((Date.now() - saved.codeSentAt) / 1000);
+          if (remaining > 0) setCooldown(remaining);
+        }
       }
     });
   }, []);
 
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const id = setInterval(() => {
+      setCooldown(c => {
+        if (c <= 1) { clearInterval(id); return 0; }
+        return c - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [cooldown]);
+
   const sendCode = async () => {
     setBusy(true); setError(null);
-    // Persist before the network call so that if the popup is closed while the
-    // OTP is in-flight (e.g. user switches tabs to find their email), the code
-    // step is still restored on reopen.
-    await chrome.storage.local.set({ [SIGN_IN_STATE_KEY]: { step: 'code', email } });
+    const now = Date.now();
+    await chrome.storage.local.set({ [SIGN_IN_STATE_KEY]: { step: 'code', email, codeSentAt: now } });
     const res: { ok: boolean; error?: string } = await chrome.runtime.sendMessage({
       type: 'AUTH_SEND_OTP', email,
     });
@@ -47,6 +63,7 @@ export function SignedOutPrompt({ onSignedIn }: Props) {
       return;
     }
     setStep('code');
+    setCooldown(COOLDOWN_SECONDS);
   };
 
   const verify = async () => {
@@ -83,11 +100,11 @@ export function SignedOutPrompt({ onSignedIn }: Props) {
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && email.includes('@') && !busy) void sendCode(); }}
+              onKeyDown={e => { if (e.key === 'Enter' && email.includes('@') && !busy && cooldown <= 0) void sendCode(); }}
               style={input}
             />
-            <button onClick={sendCode} disabled={busy || !email.includes('@')} style={btn(busy || !email.includes('@'))}>
-              {busy ? 'Sending…' : 'Send code'}
+            <button onClick={sendCode} disabled={busy || !email.includes('@') || cooldown > 0} style={btn(busy || !email.includes('@') || cooldown > 0)}>
+              {cooldown > 0 ? `Send code in ${cooldown}s` : busy ? 'Sending…' : 'Send code'}
             </button>
           </>
         ) : (
@@ -105,6 +122,9 @@ export function SignedOutPrompt({ onSignedIn }: Props) {
             />
             <button onClick={verify} disabled={busy || code.length !== 6} style={btn(busy || code.length !== 6)}>
               {busy ? 'Verifying…' : 'Verify'}
+            </button>
+            <button onClick={sendCode} disabled={busy || cooldown > 0} style={linkBtn}>
+              {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
             </button>
             <button onClick={resetToEmailStep} style={linkBtn}>
               Use a different email
