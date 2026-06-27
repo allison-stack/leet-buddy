@@ -122,11 +122,12 @@ export function Panel() {
 
     initProblem();
 
-    let lastHref = location.href;
+    let lastSlug = slugFromUrl();
     const id = setInterval(() => {
-      if (location.href !== lastHref) {
-        lastHref = location.href;
-        if (slugFromUrl()) setTimeout(initProblem, 600);
+      const cur = slugFromUrl();
+      if (cur && cur !== lastSlug) {
+        lastSlug = cur;
+        setTimeout(initProblem, 600);
       }
     }, 500);
     return () => clearInterval(id);
