@@ -43,6 +43,23 @@ export interface AuthSupabase {
   };
 }
 
+// Builds the Profile to report for a live session without touching Supabase.
+// The fallback covers users who signed in before profile caching was added.
+export function resolveProfile(
+  sessionUser: { id: string; email?: string | undefined },
+  cached: Profile | undefined,
+): Profile {
+  if (cached) return cached;
+  const handle = (sessionUser.email ?? '').split('@')[0] || 'user';
+  return {
+    id: sessionUser.id,
+    handle,
+    display_name: handle,
+    avatar_color: '#ffa116',
+    created_at: '',
+  };
+}
+
 export interface SendOtpResult { ok: boolean; error?: string }
 export interface VerifyOtpResult { ok: boolean; user?: Profile; error?: string }
 
@@ -64,13 +81,6 @@ export class Auth {
 
   async signOut(): Promise<void> {
     await this.sb.auth.signOut();
-  }
-
-  async getCurrentUser(): Promise<Profile | null> {
-    const { data } = await this.sb.auth.getSession();
-    if (!data.session) return null;
-    const res = await this.sb.from('profiles').select('*').eq('id', data.session.user.id).maybeSingle();
-    return res.data;
   }
 
   private async ensureProfile(userId: string, email: string): Promise<Profile> {

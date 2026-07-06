@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { deriveHandleFromEmail, deriveAvatarColor } from '@/background/challenger/auth';
+import { deriveHandleFromEmail, deriveAvatarColor, resolveProfile } from '@/background/challenger/auth';
+import type { Profile } from '@/shared/types';
 
 describe('deriveHandleFromEmail', () => {
   it('uses the local part lowercased', () => {
@@ -36,5 +37,28 @@ describe('deriveAvatarColor', () => {
 
   it('returns different colors for at least two different ids', () => {
     expect(deriveAvatarColor('abc')).not.toBe(deriveAvatarColor('xyz'));
+  });
+});
+
+describe('resolveProfile', () => {
+  const cached: Profile = {
+    id: 'u1', handle: 'alice', display_name: 'Alice', avatar_color: '#123456', created_at: '2026-06-06',
+  };
+
+  it('returns the cached profile when present', () => {
+    expect(resolveProfile({ id: 'u1', email: 'alice@example.com' }, cached)).toBe(cached);
+  });
+
+  it('falls back to a profile derived from the session email', () => {
+    const p = resolveProfile({ id: 'u2', email: 'bob@example.com' }, undefined);
+    expect(p).toEqual({
+      id: 'u2', handle: 'bob', display_name: 'bob', avatar_color: '#ffa116', created_at: '',
+    });
+  });
+
+  it('uses "user" when the session has no email', () => {
+    const p = resolveProfile({ id: 'u3' }, undefined);
+    expect(p.handle).toBe('user');
+    expect(p.display_name).toBe('user');
   });
 });

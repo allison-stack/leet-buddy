@@ -6,19 +6,28 @@ import { StatsTab } from './StatsTab';
 
 type AuthState = 'loading' | 'signed-out' | 'signed-in';
 
+const AUTH_TIMEOUT_MS = 5_000;
+
 export function Popup() {
   const [authState, setAuthState] = useState<AuthState>('loading');
   const [user, setUser] = useState<Profile | null>(null);
   const [state, setState] = useState<PopupState | null>(null);
+  const [timedOut, setTimedOut] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    setTimedOut(false);
     chrome.runtime.sendMessage({ type: 'GET_AUTH_STATE' })
       .then((r: { ok: boolean; user: Profile | null }) => {
         setUser(r.user ?? null);
         setAuthState(r.user ? 'signed-in' : 'signed-out');
       })
       .catch(() => setAuthState('signed-out'));
+    const t = setTimeout(() => setTimedOut(true), AUTH_TIMEOUT_MS);
+    return () => clearTimeout(t);
+  }, [attempt]);
 
+  useEffect(() => {
     const listener = (msg: { type: string; user?: Profile | null }) => {
       if (msg.type === 'AUTH_STATE') {
         setUser(msg.user ?? null);
@@ -37,7 +46,18 @@ export function Popup() {
   }, [authState]);
 
   if (authState === 'loading') {
-    return <div style={{ padding: 16, width: 280, fontFamily: 'system-ui', fontSize: 13 }}>Loading…</div>;
+    return (
+      <div style={{ padding: 16, width: 280, fontFamily: 'system-ui', fontSize: 13 }}>
+        {timedOut ? (
+          <>
+            <p style={{ margin: '0 0 8px' }}>The background worker isn&apos;t responding.</p>
+            <button onClick={() => setAttempt(a => a + 1)}>Retry</button>
+          </>
+        ) : (
+          'Loading…'
+        )}
+      </div>
+    );
   }
   if (authState === 'signed-out') {
     return <SignedOutPrompt onSignedIn={(u) => { setUser(u); setAuthState('signed-in'); }} />;

@@ -10,7 +10,7 @@ import { approachEvalPrompt, hintPrompt } from '@/llm/prompts';
 import { stripCodeBlocks } from '@/llm/output-filter';
 import { codeHash } from './hint-cache';
 import { getSupabase } from '@/shared/supabase/client-factory';
-import { Auth, type AuthSupabase } from './challenger/auth';
+import { Auth, resolveProfile, type AuthSupabase } from './challenger/auth';
 import { Friends, type FriendsSupabase } from './challenger/friends';
 import { ChallengeManager, type ChallengeSupabase } from './challenger/challenge-manager';
 import { RaceTimer } from './challenger/race-timer';
@@ -44,11 +44,18 @@ const pollAlarm = new PollAlarm(challengeManager, async (msg) => {
 }, notifier);
 
 // Broadcast auth state changes to any listening popups / content scripts.
-sbForAuth.auth.onAuthStateChange(async () => {
-  try {
-    const user = await auth.getCurrentUser();
-    chrome.runtime.sendMessage({ type: 'AUTH_STATE', user }).catch(() => { /* no popup open */ });
-  } catch { /* session restore can fail on network error */ }
+// MUST NOT call back into supabase here (getSession, getCurrentUser, table
+// queries): auth-js awaits subscriber callbacks while initializePromise is
+// still pending, and every client call starts by awaiting initializePromise.
+// Calling back in creates a circular wait that permanently freezes the auth
+// client on any worker cold start with a stored session — every getSession()
+// hangs and the popup sticks on "Loading…". See tests/auth-state-callback.test.ts.
+sbForAuth.auth.onAuthStateChange(async (_event, session) => {
+  const cached = await chrome.storage.local.get('cached_profile');
+  const user = session
+    ? resolveProfile(session.user, cached['cached_profile'] as Profile | undefined)
+    : null;
+  chrome.runtime.sendMessage({ type: 'AUTH_STATE', user }).catch(() => { /* no popup open */ });
 });
 
 chrome.notifications.onClicked.addListener(async (notifId) => {
@@ -248,15 +255,7 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
             sendResponse({ ok: true, user: null });
           } else {
             const cached = await chrome.storage.local.get('cached_profile');
-            const profile = cached['cached_profile'] as Profile | undefined;
-            // Fallback for users who signed in before profile caching was added.
-            const user: Profile = profile ?? {
-              id: data.session.user.id,
-              handle: (data.session.user.email ?? '').split('@')[0] ?? 'user',
-              display_name: (data.session.user.email ?? '').split('@')[0] ?? 'user',
-              avatar_color: '#ffa116',
-              created_at: '',
-            };
+            const user = resolveProfile(data.session.user, cached['cached_profile'] as Profile | undefined);
             sendResponse({ ok: true, user });
           }
         } catch {
