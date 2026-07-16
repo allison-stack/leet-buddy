@@ -12,6 +12,7 @@ export const defaultSettings: Settings = {
   substantiveCodeThreshold: 30,
   hourlyRequestCap: 20,
   timerSoundEnabled: true,
+  interview: { sessionMinutes: 30 },
 };
 
 export async function getSettings(): Promise<Settings> {

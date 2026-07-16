@@ -35,3 +35,8 @@ export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Storage key under which supabase-js persists the auth session.
 export const SUPABASE_SESSION_STORAGE_KEY = 'supabase.auth.session';
+
+export const INTERVIEW_DEFAULT_MINUTES = 30;
+export const INTERVIEW_TURN_CAP = 80; // runaway guard: machine force-ends the session
+export const INTERVIEW_HOURLY_CAP = 120; // separate limiter bucket; a 30-min mock makes 25-40 calls
+export const INTERVIEW_HISTORY_MAX = 20;

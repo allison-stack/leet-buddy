@@ -26,6 +26,7 @@ export interface Settings {
   substantiveCodeThreshold: number; // default 30
   hourlyRequestCap: number; // default 20
   timerSoundEnabled: boolean;
+  interview?: { sessionMinutes: number };
 }
 
 export interface Sm2State {
@@ -116,3 +117,68 @@ export type Challenge      = Database['public']['Tables']['challenges']['Row'];
 export type ChallengeState = Database['public']['Enums']['challenge_state'];
 
 export type Phase = 'timing' | 'approach' | 'hint' | 'solved';
+
+export type InterviewPhase = 'intro' | 'clarify' | 'approach' | 'coding' | 'debrief' | 'ended';
+
+export type InterviewAction = 'stay' | 'advance' | 'end';
+
+export type InterviewTurnEvent = 'session_start' | 'user_turn' | 'candidate_silent' | 'code_before_approach';
+
+export interface TranscriptEntry {
+  role: 'candidate' | 'interviewer' | 'event';
+  text: string;
+  at: number;
+}
+
+export interface InterviewTurnRequest {
+  slug: string;
+  title: string;
+  difficulty: Difficulty;
+  problemStatement: string;
+  phase: InterviewPhase;
+  transcript: TranscriptEntry[];
+  trigger: InterviewTurnEvent;
+  code?: string;
+}
+
+export type InterviewSolveStatus = 'solved' | 'time-up' | 'ended-early';
+
+export interface InterviewDebriefRequest {
+  slug: string;
+  title: string;
+  difficulty: Difficulty;
+  problemStatement: string;
+  transcript: TranscriptEntry[];
+  finalCode: string;
+  solveStatus: InterviewSolveStatus;
+  elapsedMs: number;
+}
+
+export interface DebriefCategory {
+  name: string;
+  score: 1 | 2 | 3 | 4;
+  evidence: string;
+  improvement: string;
+}
+
+export interface MissedQuestion {
+  question: string;
+  yourAnswer: string;
+  correctAnswer: string;
+}
+
+export interface Debrief {
+  categories: DebriefCategory[];
+  missedQuestions: MissedQuestion[];
+  processMisses: string[];
+  spokenSummary: string;
+}
+
+export interface InterviewSessionRecord {
+  slug: string;
+  date: string;
+  durationMs: number;
+  solveStatus: InterviewSolveStatus;
+  transcript: TranscriptEntry[];
+  debrief: Debrief;
+}
