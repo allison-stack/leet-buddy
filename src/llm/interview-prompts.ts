@@ -97,8 +97,24 @@ export function stripFences(text: string): string {
   return text.trim().replace(/^```[a-z]*\s*/i, '').replace(/```\s*$/, '').trim();
 }
 
+function parseJsonLoose(text: string): unknown {
+  const cleaned = stripFences(text);
+  try {
+    return JSON.parse(cleaned);
+  } catch (e) {
+    const start = cleaned.indexOf('{');
+    const end = cleaned.lastIndexOf('}');
+    if (start === -1 || end <= start) throw e;
+    return JSON.parse(cleaned.slice(start, end + 1));
+  }
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null;
+}
+
 export function parseInterviewTurn(text: string): { say: string; action: InterviewAction } {
-  const parsed = JSON.parse(stripFences(text)) as { say?: unknown; action?: unknown };
+  const parsed = parseJsonLoose(text) as { say?: unknown; action?: unknown };
   if (typeof parsed.say !== 'string' || parsed.say.trim() === '') throw new Error('reply missing "say"');
   const action: InterviewAction =
     parsed.action === 'advance' || parsed.action === 'end' ? parsed.action : 'stay';
@@ -106,20 +122,25 @@ export function parseInterviewTurn(text: string): { say: string; action: Intervi
 }
 
 export function parseDebrief(text: string): Debrief {
-  const parsed = JSON.parse(stripFences(text)) as Partial<Debrief>;
-  if (!Array.isArray(parsed.categories) || parsed.categories.length === 0) throw new Error('debrief missing categories');
+  const parsed = parseJsonLoose(text) as Partial<Record<keyof Debrief, unknown>>;
+  const rawCategories = Array.isArray(parsed.categories) ? parsed.categories.filter(isRecord) : [];
+  if (rawCategories.length === 0) throw new Error('debrief missing categories');
   if (typeof parsed.spokenSummary !== 'string') throw new Error('debrief missing spokenSummary');
-  const categories: DebriefCategory[] = parsed.categories.map(c => ({
-    name: String(c.name),
-    score: (c.score === 1 || c.score === 2 || c.score === 3 || c.score === 4 ? c.score : 1),
-    evidence: String(c.evidence ?? ''),
-    improvement: String(c.improvement ?? ''),
+  const categories: DebriefCategory[] = rawCategories.map(c => ({
+    name: String(c['name'] ?? ''),
+    score: (c['score'] === 1 || c['score'] === 2 || c['score'] === 3 || c['score'] === 4 ? c['score'] : 1),
+    evidence: String(c['evidence'] ?? ''),
+    improvement: String(c['improvement'] ?? ''),
   }));
   const missedQuestions: MissedQuestion[] = Array.isArray(parsed.missedQuestions)
-    ? parsed.missedQuestions.map(m => ({
-        question: String(m.question ?? ''), yourAnswer: String(m.yourAnswer ?? ''), correctAnswer: String(m.correctAnswer ?? ''),
+    ? parsed.missedQuestions.filter(isRecord).map(m => ({
+        question: String(m['question'] ?? ''),
+        yourAnswer: String(m['yourAnswer'] ?? ''),
+        correctAnswer: String(m['correctAnswer'] ?? ''),
       }))
     : [];
-  const processMisses = Array.isArray(parsed.processMisses) ? parsed.processMisses.map(String) : [];
+  const processMisses = Array.isArray(parsed.processMisses)
+    ? parsed.processMisses.filter((m): m is string => typeof m === 'string')
+    : [];
   return { categories, missedQuestions, processMisses, spokenSummary: parsed.spokenSummary };
 }

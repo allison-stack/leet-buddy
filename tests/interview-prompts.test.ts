@@ -67,6 +67,11 @@ describe('parseInterviewTurn', () => {
     expect(() => parseInterviewTurn('Sure, sounds good!')).toThrow();
     expect(() => parseInterviewTurn('{"action": "stay"}')).toThrow();
   });
+
+  it('recovers JSON wrapped in surrounding prose', () => {
+    expect(parseInterviewTurn('Sure, here you go:\n```json\n{"say": "Hi.", "action": "stay"}\n```\nHope that helps!'))
+      .toEqual({ say: 'Hi.', action: 'stay' });
+  });
 });
 
 describe('debrief', () => {
@@ -94,6 +99,31 @@ describe('debrief', () => {
     });
     expect(parseDebrief(good).categories).toHaveLength(1);
     expect(() => parseDebrief('{"spokenSummary": "hi"}')).toThrow();
+  });
+
+  it('throws on missing spokenSummary even with valid categories', () => {
+    const noSummary = JSON.stringify({
+      categories: [{ name: 'communication', score: 3, evidence: 'q', improvement: 'x' }],
+      missedQuestions: [], processMisses: [],
+    });
+    expect(() => parseDebrief(noSummary)).toThrow(/spokenSummary/);
+  });
+
+  it('skips non-object entries and defaults missing fields', () => {
+    const messy = JSON.stringify({
+      categories: [null, 'junk', { score: 2 }],
+      missedQuestions: [null, { question: 'q' }],
+      processMisses: ['ok', 42],
+      spokenSummary: 's',
+    });
+    const d = parseDebrief(messy);
+    expect(d.categories).toEqual([{ name: '', score: 2, evidence: '', improvement: '' }]);
+    expect(d.missedQuestions).toEqual([{ question: 'q', yourAnswer: '', correctAnswer: '' }]);
+    expect(d.processMisses).toEqual(['ok']);
+  });
+
+  it('throws when every category entry is junk', () => {
+    expect(() => parseDebrief('{"categories": [null, 1], "spokenSummary": "s"}')).toThrow(/categories/);
   });
 });
 
