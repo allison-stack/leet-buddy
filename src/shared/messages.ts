@@ -1,6 +1,6 @@
 import type {
   HintRequest, ApproachEvalRequest, ApproachEvalResponse, Difficulty, Profile,
-  FriendsListEntry, Challenge,
+  FriendsListEntry, Challenge, InterviewTurnRequest, InterviewDebriefRequest,
 } from './types';
 
 export type ContentToWorker =
@@ -29,7 +29,9 @@ export type ContentToWorker =
   | { type: 'CHALLENGE_SUBMIT'; challengeId: string; timeMs: number; lcRuntimePct?: number; lcMemPct?: number }
   | { type: 'CHALLENGE_CANCEL'; challengeId: string }
   | { type: 'CHALLENGE_INBOX_GET' }
-  | { type: 'GET_STREAK_COUNT' };
+  | { type: 'GET_STREAK_COUNT' }
+  | { type: 'INTERVIEW_TURN'; payload: InterviewTurnRequest }
+  | { type: 'INTERVIEW_DEBRIEF'; payload: InterviewDebriefRequest };
 
 export type WorkerToContent =
   | { type: 'TIMER_TICK'; tabId: number; elapsedSeconds: number; status: TimerStatus }

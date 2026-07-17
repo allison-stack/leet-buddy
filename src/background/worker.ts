@@ -1,4 +1,4 @@
-import { getState, persistTimers, persistCache, persistLimiter, buildProviderConfigs, chat, recordTokens, tokensToday } from './state';
+import { getState, persistTimers, persistCache, persistLimiter, persistInterviewLimiter, buildProviderConfigs, chat, recordTokens, tokensToday } from './state';
 import type { ContentToWorker, WorkerToContent } from '@/shared/messages';
 import type { ProblemRecord } from '@/shared/types';
 import { TIMER_TICK_MS } from '@/shared/constants';
@@ -16,6 +16,7 @@ import { ChallengeManager, type ChallengeSupabase } from './challenger/challenge
 import { RaceTimer } from './challenger/race-timer';
 import { PollAlarm } from './challenger/poll-alarm';
 import { Notifier } from './challenger/notifier';
+import { runInterviewTurn, runInterviewDebrief, type InterviewChatFn } from './interview';
 import type { ActiveChallengeResponse, ChallengeInboxResponse } from '@/shared/messages';
 import type { Profile } from '@/shared/types';
 
@@ -224,6 +225,46 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
           state.cache.set(msg.payload.slug, msg.payload.tier, ch, cleaned);
           await persistCache(state);
           sendResponse({ ok: true, payload: { text: cleaned } });
+        } catch (e) {
+          sendResponse({ ok: false, error: (e as Error).message });
+        }
+        return;
+      }
+      case 'INTERVIEW_TURN': {
+        if (!state.interviewLimiter.tryAcquire(now)) {
+          sendResponse({ ok: false, error: 'interview rate limited — wait a few minutes' });
+          return;
+        }
+        await persistInterviewLimiter(state);
+        try {
+          const { primary, fallback } = await buildProviderConfigs();
+          const chatFn: InterviewChatFn = async args => {
+            const res = await chat({ systemPrompt: args.systemPrompt, userPrompt: args.userPrompt, maxTokens: args.maxTokens, primary, fallback });
+            await recordTokens((res.tokensIn ?? 0) + (res.tokensOut ?? 0), now);
+            return { text: res.text };
+          };
+          const reply = await runInterviewTurn(msg.payload, chatFn);
+          sendResponse({ ok: true, ...reply });
+        } catch (e) {
+          sendResponse({ ok: false, error: (e as Error).message });
+        }
+        return;
+      }
+      case 'INTERVIEW_DEBRIEF': {
+        if (!state.interviewLimiter.tryAcquire(now)) {
+          sendResponse({ ok: false, error: 'interview rate limited — wait a few minutes' });
+          return;
+        }
+        await persistInterviewLimiter(state);
+        try {
+          const { primary, fallback } = await buildProviderConfigs();
+          const chatFn: InterviewChatFn = async args => {
+            const res = await chat({ systemPrompt: args.systemPrompt, userPrompt: args.userPrompt, maxTokens: args.maxTokens, primary, fallback });
+            await recordTokens((res.tokensIn ?? 0) + (res.tokensOut ?? 0), now);
+            return { text: res.text };
+          };
+          const debrief = await runInterviewDebrief(msg.payload, chatFn);
+          sendResponse({ ok: true, debrief });
         } catch (e) {
           sendResponse({ ok: false, error: (e as Error).message });
         }
