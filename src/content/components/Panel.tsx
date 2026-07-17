@@ -44,9 +44,16 @@ export function Panel() {
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [interviewActive, setInterviewActive] = useState(false);
   const [interviewSessionSeconds, setInterviewSessionSeconds] = useState(1800);
-  const interviewStartElapsedRef = useRef(0);
+  const [interviewNow, setInterviewNow] = useState(0);
+  const interviewStartAtRef = useRef(0);
   const interviewActiveRef = useRef(false);
   interviewActiveRef.current = interviewActive;
+
+  useEffect(() => {
+    if (!interviewActive) return;
+    const id = setInterval(() => setInterviewNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [interviewActive]);
 
   type ChallengePhase = 'none' | 'racing' | 'waiting' | 'cta' | 'picking' | 'result';
   interface SolveData { timeMs: number; lcRuntimePct?: number; lcMemPct?: number }
@@ -302,13 +309,14 @@ export function Panel() {
   async function startInterview() {
     const settings = await getSettings();
     setInterviewSessionSeconds((settings.interview?.sessionMinutes ?? 30) * 60);
-    interviewStartElapsedRef.current = elapsed;
+    interviewStartAtRef.current = Date.now();
+    setInterviewNow(Date.now());
     setInterviewActive(true);
   }
 
-  const interviewRemaining = Math.max(
-    0, interviewSessionSeconds - (elapsed - interviewStartElapsedRef.current),
-  );
+  const interviewRemaining = interviewActive
+    ? Math.max(0, interviewSessionSeconds - Math.floor((interviewNow - interviewStartAtRef.current) / 1000))
+    : interviewSessionSeconds;
 
   function formatCountdown(s: number): string {
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
