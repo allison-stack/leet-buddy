@@ -377,9 +377,10 @@ export function Panel() {
           </span>
           <button
             className="lb-header__minimize"
-            onClick={e => { e.stopPropagation(); toggleMinimized(true); }}
+            onClick={e => { e.stopPropagation(); if (!interviewActive) toggleMinimized(true); }}
             onPointerDown={e => e.stopPropagation()}
-            title="Minimize"
+            disabled={interviewActive}
+            title={interviewActive ? 'End the interview to minimize' : 'Minimize'}
             aria-label="Minimize panel"
           >
             −
