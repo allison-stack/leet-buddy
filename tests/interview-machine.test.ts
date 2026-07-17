@@ -62,6 +62,11 @@ describe('phase advancement', () => {
     expect(r.state.phase).toBe('debrief');
     expect(r.requestDebrief).toBe(true);
   });
+
+  it('action end records endReason interviewer', () => {
+    const r = reduce(initialInterviewState(), reply('end'));
+    expect(r.state.endReason).toBe('interviewer');
+  });
 });
 
 describe('code-before-approach nudge', () => {
