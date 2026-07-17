@@ -19,6 +19,7 @@ import { Notifier } from './challenger/notifier';
 import { runInterviewTurn, runInterviewDebrief, type InterviewChatFn } from './interview';
 import type { ActiveChallengeResponse, ChallengeInboxResponse } from '@/shared/messages';
 import type { Profile } from '@/shared/types';
+import type { ProviderConfig } from '@/llm';
 
 
 // Cast: AuthSupabase is a structurally-compatible subset of the real
@@ -238,12 +239,7 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
         await persistInterviewLimiter(state);
         try {
           const { primary, fallback } = await buildProviderConfigs();
-          const chatFn: InterviewChatFn = async args => {
-            const res = await chat({ systemPrompt: args.systemPrompt, userPrompt: args.userPrompt, maxTokens: args.maxTokens, primary, fallback });
-            await recordTokens((res.tokensIn ?? 0) + (res.tokensOut ?? 0), now);
-            return { text: res.text };
-          };
-          const reply = await runInterviewTurn(msg.payload, chatFn);
+          const reply = await runInterviewTurn(msg.payload, interviewChatFn(primary, fallback, now));
           sendResponse({ ok: true, ...reply });
         } catch (e) {
           sendResponse({ ok: false, error: (e as Error).message });
@@ -258,12 +254,7 @@ chrome.runtime.onMessage.addListener((msg: ContentToWorker, sender, sendResponse
         await persistInterviewLimiter(state);
         try {
           const { primary, fallback } = await buildProviderConfigs();
-          const chatFn: InterviewChatFn = async args => {
-            const res = await chat({ systemPrompt: args.systemPrompt, userPrompt: args.userPrompt, maxTokens: args.maxTokens, primary, fallback });
-            await recordTokens((res.tokensIn ?? 0) + (res.tokensOut ?? 0), now);
-            return { text: res.text };
-          };
-          const debrief = await runInterviewDebrief(msg.payload, chatFn);
+          const debrief = await runInterviewDebrief(msg.payload, interviewChatFn(primary, fallback, now));
           sendResponse({ ok: true, debrief });
         } catch (e) {
           sendResponse({ ok: false, error: (e as Error).message });
@@ -490,6 +481,14 @@ async function fetchProfile(userId: string): Promise<Profile | null> {
   }
 }
 
+
+function interviewChatFn(primary: ProviderConfig, fallback: ProviderConfig | undefined, now: number): InterviewChatFn {
+  return async args => {
+    const res = await chat({ systemPrompt: args.systemPrompt, userPrompt: args.userPrompt, maxTokens: args.maxTokens, primary, fallback });
+    await recordTokens((res.tokensIn ?? 0) + (res.tokensOut ?? 0), now);
+    return { text: res.text };
+  };
+}
 
 function parseApproachReply(text: string): { verdict: 'validate' | 'redirect' | 'clarify'; message: string } {
   const verdictMatch = text.match(/VERDICT:\s*(validate|redirect|clarify)/i);
