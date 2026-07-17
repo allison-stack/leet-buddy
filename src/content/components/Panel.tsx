@@ -21,6 +21,7 @@ import { ResultScreen } from './challenger/ResultScreen';
 import { InboxTab } from './challenger/InboxTab';
 import { FriendsTab } from './challenger/FriendsTab';
 import { Timer } from './Timer';
+import { InterviewHud } from './interview/InterviewHud';
 
 type PanelTab = 'solve' | 'inbox' | 'friends';
 
@@ -41,6 +42,11 @@ export function Panel() {
   const [activeTab, setActiveTab] = useState<PanelTab>('solve');
   const [pendingCount, setPendingCount] = useState(0);
   const [isSignedIn, setIsSignedIn] = useState(false);
+  const [interviewActive, setInterviewActive] = useState(false);
+  const [interviewSessionSeconds, setInterviewSessionSeconds] = useState(1800);
+  const interviewStartElapsedRef = useRef(0);
+  const interviewActiveRef = useRef(false);
+  interviewActiveRef.current = interviewActive;
 
   type ChallengePhase = 'none' | 'racing' | 'waiting' | 'cta' | 'picking' | 'result';
   interface SolveData { timeMs: number; lcRuntimePct?: number; lcMemPct?: number }
@@ -103,6 +109,7 @@ export function Panel() {
       setActiveChallenge(null);
       setFriendProfile(null);
       setSolveData(null);
+      setInterviewActive(false);
       prevHintsUnlockedRef.current = false;
       void sendToWorker<{ ok: boolean; snapshot?: Snapshot }>({ type: 'TIMER_START', tabId: -1, slug: s, difficulty: d })
         .then(res => {
@@ -191,7 +198,7 @@ export function Panel() {
   }, [status]);
 
   useEffect(() => {
-    if (hintsUnlocked && !prevHintsUnlockedRef.current) {
+    if (hintsUnlocked && !prevHintsUnlockedRef.current && !interviewActiveRef.current) {
       setFlashHints(true);
       const code = readMonacoContents();
       setPhase(isSubstantive(code, starterRef.current, 30) ? 'hint' : 'approach');
@@ -292,6 +299,21 @@ export function Panel() {
     void sendTimerControl({ type: status === 'paused' ? 'TIMER_RESUME' : 'TIMER_PAUSE', tabId: -1 });
   }
 
+  async function startInterview() {
+    const settings = await getSettings();
+    setInterviewSessionSeconds((settings.interview?.sessionMinutes ?? 30) * 60);
+    interviewStartElapsedRef.current = elapsed;
+    setInterviewActive(true);
+  }
+
+  const interviewRemaining = Math.max(
+    0, interviewSessionSeconds - (elapsed - interviewStartElapsedRef.current),
+  );
+
+  function formatCountdown(s: number): string {
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  }
+
   function markSolved() {
     if (!slug) return;
     setPhase('solved');
@@ -361,17 +383,50 @@ export function Panel() {
         {activeTab === 'solve' && (
           <div>
             <div style={{ textAlign: 'center', padding: '10px 0 4px' }}>
-              <div
-                style={{ cursor: 'pointer' }}
-                onClick={pauseToggle}
-                title={status === 'paused' ? 'Click to resume' : 'Click to pause'}
-              >
-                <Timer elapsedFromWorker={elapsed} status={status} pastThreshold={hintsUnlocked} />
-              </div>
-              <div style={{ fontSize: 10, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>
-                {status === 'paused' ? 'paused' : status === 'idle' ? 'ready' : 'running'}
-              </div>
+              {interviewActive ? (
+                <>
+                  <div style={{ fontSize: 26, fontWeight: 700, color: interviewRemaining < 300 ? '#f87171' : '#f0f0f0' }}>
+                    {formatCountdown(interviewRemaining)}
+                  </div>
+                  <div style={{ fontSize: 10, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>
+                    interview
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div
+                    style={{ cursor: 'pointer' }}
+                    onClick={pauseToggle}
+                    title={status === 'paused' ? 'Click to resume' : 'Click to pause'}
+                  >
+                    <Timer elapsedFromWorker={elapsed} status={status} pastThreshold={hintsUnlocked} />
+                  </div>
+                  <div style={{ fontSize: 10, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 2 }}>
+                    {status === 'paused' ? 'paused' : status === 'idle' ? 'ready' : 'running'}
+                  </div>
+                </>
+              )}
             </div>
+
+            {!interviewActive && phase !== 'solved' && (
+              <button className="lb-btn" style={{ width: '100%', marginTop: 8 }} onClick={() => void startInterview()}>
+                🎤 Mock interview
+              </button>
+            )}
+
+            {interviewActive && (
+              <InterviewHud
+                slug={slug}
+                title={title}
+                difficulty={difficulty}
+                problemStatement={readProblemStatement()}
+                starter={starter}
+                sessionSeconds={interviewSessionSeconds}
+                remainingSeconds={interviewRemaining}
+                solved={phase === 'solved'}
+                onExit={() => setInterviewActive(false)}
+              />
+            )}
 
             {(challengePhase === 'racing' || challengePhase === 'waiting') && activeChallenge && (
               <ChallengeBanner
@@ -386,7 +441,7 @@ export function Panel() {
               />
             )}
 
-            {isSignedIn && storedSolveData && phase !== 'solved' && challengePhase === 'none' && (
+            {!interviewActive && isSignedIn && storedSolveData && phase !== 'solved' && challengePhase === 'none' && (
               <div className="lb-section">
                 <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 6 }}>
                   Previous solve: {formatSolveMs(storedSolveData.timeMs)}
@@ -406,7 +461,7 @@ export function Panel() {
               </div>
             )}
 
-            {phase !== 'solved' && (
+            {!interviewActive && phase !== 'solved' && (
               <div className="lb-row" style={{ marginTop: 8 }}>
                 <button
                   className={`lb-btn${flashHints ? ' flash' : ''}`}
@@ -428,13 +483,13 @@ export function Panel() {
                 </button>
               </div>
             )}
-            {phase !== 'solved' && (
+            {!interviewActive && phase !== 'solved' && (
               <button className="lb-btn primary" style={{ width: '100%', marginTop: 8 }} onClick={markSolved}>
                 Mark solved ✓
               </button>
             )}
 
-            {phase === 'approach' && (
+            {!interviewActive && phase === 'approach' && (
               <ApproachPrompt
                 slug={slug}
                 problemStatement={readProblemStatement()}
@@ -443,12 +498,12 @@ export function Panel() {
                 onSkip={() => setPhase('hint')}
               />
             )}
-            {approachResult && (
+            {!interviewActive && approachResult && (
               <div className="lb-hint">
                 <strong>{approachResult.verdict.toUpperCase()}:</strong> {approachResult.message}
               </div>
             )}
-            {phase === 'hint' && (
+            {!interviewActive && phase === 'hint' && (
               <HintLadder
                 slug={slug}
                 problemStatement={readProblemStatement()}
