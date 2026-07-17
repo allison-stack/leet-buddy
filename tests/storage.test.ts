@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { getSettings, setSettings, getProblems, upsertProblem, defaultSettings } from '@/shared/storage';
+import { getSettings, setSettings, getProblems, upsertProblem, defaultSettings, appendInterviewSession, getInterviewSessions } from '@/shared/storage';
+import { INTERVIEW_HISTORY_MAX } from '@/shared/constants';
+import type { InterviewSessionRecord } from '@/shared/types';
 
 const syncStore = new Map<string, unknown>();
 const localStore = new Map<string, unknown>();
@@ -43,5 +45,26 @@ describe('storage', () => {
     });
     const problems = await getProblems();
     expect(problems['two-sum']?.title).toBe('Two Sum');
+  });
+});
+
+describe('interview sessions', () => {
+  const record = (slug: string): InterviewSessionRecord => ({
+    slug, date: '2026-07-16', durationMs: 60_000, solveStatus: 'solved',
+    transcript: [], debrief: { categories: [], missedQuestions: [], processMisses: [], spokenSummary: 's' },
+  });
+
+  it('appends and reads back', async () => {
+    await appendInterviewSession(record('two-sum'));
+    await appendInterviewSession(record('three-sum'));
+    const list = await getInterviewSessions();
+    expect(list.map(r => r.slug)).toEqual(['two-sum', 'three-sum']);
+  });
+
+  it('keeps only the most recent INTERVIEW_HISTORY_MAX', async () => {
+    for (let i = 0; i < INTERVIEW_HISTORY_MAX + 5; i++) await appendInterviewSession(record(`p${i}`));
+    const list = await getInterviewSessions();
+    expect(list).toHaveLength(INTERVIEW_HISTORY_MAX);
+    expect(list[0]?.slug).toBe('p5');
   });
 });

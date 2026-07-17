@@ -1,4 +1,5 @@
-import type { Settings, ProblemRecord, DailyLog } from './types';
+import type { Settings, ProblemRecord, DailyLog, InterviewSessionRecord } from './types';
+import { INTERVIEW_HISTORY_MAX } from './constants';
 
 export const defaultSettings: Settings = {
   llm: {
@@ -96,4 +97,16 @@ export async function setPanelMinimized(slug: string, value: boolean): Promise<v
     delete map[slug];
   }
   await setLocal(PANEL_MINIMIZED_KEY, map);
+}
+
+const INTERVIEW_SESSIONS_KEY = 'interview_sessions';
+
+export async function getInterviewSessions(): Promise<InterviewSessionRecord[]> {
+  return (await getLocal<InterviewSessionRecord[]>(INTERVIEW_SESSIONS_KEY)) ?? [];
+}
+
+export async function appendInterviewSession(rec: InterviewSessionRecord): Promise<void> {
+  const list = await getInterviewSessions();
+  list.push(rec);
+  await setLocal(INTERVIEW_SESSIONS_KEY, list.slice(-INTERVIEW_HISTORY_MAX));
 }
