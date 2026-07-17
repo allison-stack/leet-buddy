@@ -428,7 +428,7 @@ export function Panel() {
               />
             )}
 
-            {(challengePhase === 'racing' || challengePhase === 'waiting') && activeChallenge && (
+            {!interviewActive && (challengePhase === 'racing' || challengePhase === 'waiting') && activeChallenge && (
               <ChallengeBanner
                 challenge={activeChallenge}
                 meId={meId}
@@ -511,13 +511,13 @@ export function Panel() {
                 userCode={readMonacoContents()}
               />
             )}
-            {phase === 'solved' && challengePhase !== 'picking' && challengePhase !== 'result' && (
+            {!interviewActive && phase === 'solved' && challengePhase !== 'picking' && challengePhase !== 'result' && (
               <SolveRating slug={slug} title={title} difficulty={difficulty} hintTierUsed={hintTierUsed} onRated={() => setDismissed(true)} />
             )}
-            {phase === 'solved' && challengePhase === 'cta' && solveData && (
+            {!interviewActive && phase === 'solved' && challengePhase === 'cta' && solveData && (
               <ChallengeCTA timeMs={solveData.timeMs} onChallenge={() => setChallengePhase('picking')} />
             )}
-            {challengePhase === 'picking' && solveData && (
+            {!interviewActive && challengePhase === 'picking' && solveData && (
               <FriendPicker
                 solveData={solveData}
                 problemSlug={slug}
@@ -534,7 +534,7 @@ export function Panel() {
                 onCancel={() => setChallengePhase('cta')}
               />
             )}
-            {challengePhase === 'result' && activeChallenge && (
+            {!interviewActive && challengePhase === 'result' && activeChallenge && (
               <ResultScreen
                 challenge={activeChallenge}
                 meId={meId}
